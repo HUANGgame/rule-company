@@ -764,9 +764,9 @@ function GameCanvas({ state, meId, tasks, onMove, onInteract, onToggleDoor }: { 
         const target = taskTargets[task.area];
         return { task, distance: target ? Math.hypot(me.x - target.x, me.y - target.y) : Number.POSITIVE_INFINITY };
       })
-      .filter((entry) => entry.task.area === me.currentArea && entry.distance <= 88)
+      .filter((entry) => entry.task.area === me.currentArea && entry.distance <= 88 && !state.activeTasks.some((active) => active.playerId === me.id))
       .sort((a, b) => a.distance - b.distance)[0]?.task;
-  }, [me, tasks]);
+  }, [me, state.activeTasks, tasks]);
   const nearestDoor = useMemo(() => {
     if (!me) return undefined;
     return state.doors
