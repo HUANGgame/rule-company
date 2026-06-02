@@ -122,9 +122,15 @@ button {
 }
 
 .notice,
-.errorText {
+.errorText,
+.successText {
   color: #ffb1a8;
   font-size: 13px;
+}
+
+.successText {
+  color: #9ed59e;
+  overflow-wrap: anywhere;
 }
 
 .shopPanel {
@@ -427,6 +433,59 @@ textarea {
   padding: 24px;
   border: 1px solid #49453c;
   background: #191815;
+}
+
+.authHeader {
+  display: grid;
+  gap: 5px;
+}
+
+.authHeader p {
+  margin: 0;
+  color: #aaa493;
+  font-size: 13px;
+}
+
+.passwordField {
+  position: relative;
+  display: block;
+}
+
+.passwordField input {
+  padding-right: 48px;
+}
+
+.passwordField button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 38px;
+  border: 0;
+  color: #ded8c7;
+  background: transparent;
+}
+
+.authLinks {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.authLinks button {
+  border: 0;
+  color: #d7b071;
+  background: transparent;
+  padding: 0;
+  font-size: 13px;
+}
+
+.authLinks button:hover {
+  color: #f0c96a;
+  text-decoration: underline;
 }
 
 .segmented {

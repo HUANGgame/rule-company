@@ -6,7 +6,7 @@ import cors from "cors";
 import express from "express";
 import { Server } from "socket.io";
 import { z } from "zod";
-import { fallbackLogin, fallbackRegister, fallbackSpendCoins, isConfiguredAdmin, requireAuth, signUser, type AuthedRequest } from "./auth.js";
+import { createResetToken, fallbackCreatePasswordReset, fallbackLogin, fallbackRegister, fallbackResetPassword, fallbackSpendCoins, isConfiguredAdmin, requireAuth, signUser, type AuthedRequest } from "./auth.js";
 import { getAdminContent, removeAdminItem, requireAdmin, setAvailability, upsertAdminItem } from "./admin.js";
 import { getGameConfig, updateGameConfig } from "./config.js";
 import { prisma } from "./db.js";
@@ -45,6 +45,12 @@ const credentialsSchema = z.object({
   email: z.string().email(),
   password: z.string().min(4),
   name: z.string().min(2).max(32).optional()
+});
+const forgotPasswordSchema = z.object({ email: z.string().email() });
+const resetPasswordSchema = z.object({
+  email: z.string().email(),
+  token: z.string().min(16),
+  password: z.string().min(8)
 });
 
 app.get("/api/health", (_req, res) => {
@@ -85,6 +91,66 @@ app.post("/api/auth/login", async (req, res) => {
     res.json({ user, token: signUser(user) });
   } catch (error) {
     res.status(401).json({ error: error instanceof Error ? error.message : "Login failed" });
+  }
+});
+
+app.post("/api/auth/forgot-password", async (req, res) => {
+  try {
+    const input = forgotPasswordSchema.parse(req.body);
+    const email = input.email.toLowerCase();
+    let token: string | null = null;
+    if (prisma) {
+      const user = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+      if (user) {
+        token = createResetToken();
+        await prisma.passwordResetToken.create({
+          data: {
+            userId: user.id,
+            token,
+            expiresAt: new Date(Date.now() + 30 * 60 * 1000)
+          }
+        });
+      }
+    } else {
+      token = await fallbackCreatePasswordReset(email);
+    }
+    res.json({
+      ok: true,
+      message: "If the email exists, a password reset code has been created.",
+      resetToken: token,
+      resetUrl: token ? `${clientUrl}/?resetToken=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}` : undefined
+    });
+  } catch (error) {
+    res.status(400).json({ error: message(error) });
+  }
+});
+
+app.post("/api/auth/reset-password", async (req, res) => {
+  try {
+    const input = resetPasswordSchema.parse(req.body);
+    const email = input.email.toLowerCase();
+    if (prisma) {
+      const reset = await prisma.passwordResetToken.findUnique({
+        where: { token: input.token },
+        include: { user: true }
+      });
+      if (!reset || reset.user.email !== email || reset.usedAt || reset.expiresAt.getTime() < Date.now()) {
+        throw new Error("Invalid or expired reset code");
+      }
+      await prisma.user.update({
+        where: { id: reset.userId },
+        data: { passwordHash: await bcrypt.hash(input.password, 10) }
+      });
+      await prisma.passwordResetToken.update({
+        where: { token: input.token },
+        data: { usedAt: new Date() }
+      });
+    } else {
+      await fallbackResetPassword(email, input.token, input.password);
+    }
+    res.json({ ok: true, message: "Password has been reset. You can sign in with the new password." });
+  } catch (error) {
+    res.status(400).json({ error: message(error) });
   }
 });
 

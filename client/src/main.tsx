@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { io, type Socket } from "socket.io-client";
-import { BriefcaseBusiness, DoorOpen, Eye, LogIn, MessageSquare, Play, RadioTower, ShieldAlert, UserPlus, Zap } from "lucide-react";
+import { BriefcaseBusiness, DoorOpen, Eye, EyeOff, KeyRound, LogIn, MessageSquare, Play, RadioTower, ShieldAlert, UserPlus, Zap } from "lucide-react";
 import type { CharacterSkin, GameConfig, GameState, PrivatePlayerState, Rule, AuthUser, RoomSummary, Sabotage, TaskDef, EmployeeRole } from "@rule-company/shared";
 import "./styles.css";
 
@@ -388,6 +388,128 @@ function templateFor(collection: AdminCollection) {
 }
 
 function AuthPanel({ onAuth }: { onAuth: (auth: AuthState) => void }) {
+  const initialParams = new URLSearchParams(window.location.search);
+  const [mode, setMode] = useState<"login" | "register" | "forgot" | "reset">(initialParams.get("resetToken") ? "reset" : "register");
+  const [email, setEmail] = useState(initialParams.get("email") || "player@example.com");
+  const [name, setName] = useState("夜班員工");
+  const [password, setPassword] = useState("rules1234");
+  const [confirmPassword, setConfirmPassword] = useState("rules1234");
+  const [resetToken, setResetToken] = useState(initialParams.get("resetToken") || "");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState("");
+  const [error, setError] = useState("");
+
+  const isRegister = mode === "register";
+  const isForgot = mode === "forgot";
+  const isReset = mode === "reset";
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    setError("");
+    setStatus("");
+    setLoading(true);
+    try {
+      if (isForgot) {
+        const res = await fetch(`${apiUrl}/api/auth/forgot-password`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "無法建立重設碼");
+        setStatus(data.resetToken ? `重設碼：${data.resetToken}` : "如果 Email 存在，系統已建立重設碼。");
+        if (data.resetToken) setResetToken(data.resetToken);
+        setMode("reset");
+        return;
+      }
+
+      if (isReset) {
+        if (password !== confirmPassword) throw new Error("兩次輸入的密碼不一致");
+        const res = await fetch(`${apiUrl}/api/auth/reset-password`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, token: resetToken.trim(), password })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "密碼重設失敗");
+        setStatus("密碼已更新，請使用新密碼登入。");
+        setMode("login");
+        return;
+      }
+
+      if (isRegister && password !== confirmPassword) throw new Error("兩次輸入的密碼不一致");
+      const res = await fetch(`${apiUrl}/api/auth/${mode}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, name, password })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "驗證失敗");
+      onAuth(data);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "發生未知錯誤");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function switchMode(next: typeof mode) {
+    setMode(next);
+    setError("");
+    setStatus("");
+  }
+
+  return (
+    <main className="authScreen">
+      <form className="authForm" onSubmit={submit}>
+        <div className="authHeader">
+          <h1>規則公司</h1>
+          <p>{isForgot ? "輸入帳號 Email 以取得重設碼" : isReset ? "輸入重設碼並設定新密碼" : "登入後建立房間、邀請玩家並開始夜班"}</p>
+        </div>
+        {!isForgot && !isReset && (
+          <div className="segmented">
+            <button type="button" className={mode === "register" ? "active" : ""} onClick={() => switchMode("register")}><UserPlus size={16} /> 註冊</button>
+            <button type="button" className={mode === "login" ? "active" : ""} onClick={() => switchMode("login")}><LogIn size={16} /> 登入</button>
+          </div>
+        )}
+        {isRegister && <input value={name} onChange={(event) => setName(event.target.value)} placeholder="玩家名稱" autoComplete="name" required />}
+        <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email" type="email" autoComplete="email" required />
+        {isReset && <input value={resetToken} onChange={(event) => setResetToken(event.target.value)} placeholder="重設碼" autoComplete="one-time-code" required />}
+        {!isForgot && (
+          <label className="passwordField">
+            <input value={password} onChange={(event) => setPassword(event.target.value)} type={showPassword ? "text" : "password"} placeholder={isReset ? "新密碼" : "密碼"} autoComplete={mode === "login" ? "current-password" : "new-password"} required minLength={mode === "login" ? 4 : 8} />
+            <button type="button" aria-label={showPassword ? "隱藏密碼" : "顯示密碼"} onClick={() => setShowPassword((value) => !value)}>
+              {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+            </button>
+          </label>
+        )}
+        {(isRegister || isReset) && (
+          <label className="passwordField">
+            <input value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} type={showConfirmPassword ? "text" : "password"} placeholder="確認密碼" autoComplete="new-password" required minLength={8} />
+            <button type="button" aria-label={showConfirmPassword ? "隱藏確認密碼" : "顯示確認密碼"} onClick={() => setShowConfirmPassword((value) => !value)}>
+              {showConfirmPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+            </button>
+          </label>
+        )}
+        <button className="primaryButton" disabled={loading}>
+          {isForgot ? <KeyRound size={17} /> : <Play size={17} />}
+          {loading ? "處理中..." : isForgot ? "取得重設碼" : isReset ? "更新密碼" : mode === "login" ? "登入" : "建立帳號"}
+        </button>
+        <div className="authLinks">
+          {!isForgot && !isReset && <button type="button" onClick={() => switchMode("forgot")}>忘記密碼？</button>}
+          {(isForgot || isReset) && <button type="button" onClick={() => switchMode("login")}>返回登入</button>}
+          {mode === "login" && <button type="button" onClick={() => switchMode("register")}>建立新帳號</button>}
+        </div>
+        {status && <p className="successText">{status}</p>}
+        {error && <p className="errorText">{error}</p>}
+      </form>
+    </main>
+  );
+}
+
+function LegacyAuthPanel({ onAuth }: { onAuth: (auth: AuthState) => void }) {
   const [mode, setMode] = useState<"login" | "register">("register");
   const [email, setEmail] = useState("player@example.com");
   const [name, setName] = useState("夜班員工");

@@ -1,4 +1,5 @@
 import bcrypt from "bcrypt";
+import crypto from "node:crypto";
 import jwt from "jsonwebtoken";
 import type { NextFunction, Request, Response } from "express";
 import type { AuthUser } from "@rule-company/shared";
@@ -8,6 +9,7 @@ export interface AuthedRequest extends Request {
 }
 
 const fallbackUsers = new Map<string, AuthUser & { passwordHash: string }>();
+const fallbackResetTokens = new Map<string, { email: string; expiresAt: number; used: boolean }>();
 
 export function isConfiguredAdmin(email: string) {
   const admins = (process.env.ADMIN_EMAILS || "")
@@ -63,6 +65,34 @@ export async function fallbackSpendCoins(userId: string, cost: number) {
 export async function fallbackLogin(email: string, password: string) {
   const user = fallbackUsers.get(email.toLowerCase());
   if (!user || !(await bcrypt.compare(password, user.passwordHash))) throw new Error("Invalid credentials");
+  return stripPassword(user);
+}
+
+export function createResetToken() {
+  return crypto.randomBytes(24).toString("base64url");
+}
+
+export async function fallbackCreatePasswordReset(email: string) {
+  const normalized = email.toLowerCase();
+  if (!fallbackUsers.has(normalized)) return null;
+  const token = createResetToken();
+  fallbackResetTokens.set(token, {
+    email: normalized,
+    expiresAt: Date.now() + 30 * 60 * 1000,
+    used: false
+  });
+  return token;
+}
+
+export async function fallbackResetPassword(email: string, token: string, password: string) {
+  const normalized = email.toLowerCase();
+  const reset = fallbackResetTokens.get(token);
+  const user = fallbackUsers.get(normalized);
+  if (!reset || !user || reset.email !== normalized || reset.used || reset.expiresAt < Date.now()) {
+    throw new Error("Invalid or expired reset code");
+  }
+  user.passwordHash = await bcrypt.hash(password, 10);
+  reset.used = true;
   return stripPassword(user);
 }
 
