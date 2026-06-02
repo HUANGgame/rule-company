@@ -837,6 +837,7 @@ function ActionPanel({ state, meId, content, privateState, isBoss, auth, emit }:
       </section>
       <section>
         <h2><Package size={18} /> 背包</h2>
+        <button className="ghostButton" onClick={loadInventory}>更新背包</button>
         {usableInventory.map((entry) => (
           <article key={entry.id} className="inventoryCard">
             <div>
