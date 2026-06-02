@@ -1,0 +1,475 @@
+:root {
+  color: #f4efe4;
+  background: #11110f;
+  font-family: Inter, "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px) 0 0 / 44px 44px,
+    linear-gradient(#141411, #1a1715);
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.appShell {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  min-height: 100vh;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  border-right: 1px solid #3b3932;
+  background: #191815;
+}
+
+.brandBlock h1,
+.authForm h1 {
+  margin: 0;
+  font-size: 28px;
+  letter-spacing: 0;
+}
+
+.brandBlock span,
+.identity span,
+.topBar span,
+.room span,
+.muted,
+.actionButton small {
+  color: #aaa493;
+  font-size: 13px;
+}
+
+.identity {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid #403d35;
+  background: #211f1b;
+}
+
+.primaryButton,
+.ghostButton,
+.actionButton,
+.room,
+.segmented button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  border: 1px solid #514d42;
+  border-radius: 3px;
+  color: #f7f2e8;
+  background: #282620;
+}
+
+.primaryButton {
+  border-color: #b88947;
+  background: #8e5d25;
+}
+
+.ghostButton:hover,
+.actionButton:hover,
+.room:hover,
+.segmented button:hover {
+  border-color: #87806f;
+  background: #322f28;
+}
+
+.primaryButton:hover {
+  background: #a56b2a;
+}
+
+.primaryButton:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.roomList {
+  display: grid;
+  gap: 8px;
+  overflow: auto;
+}
+
+.room {
+  align-items: flex-start;
+  flex-direction: column;
+  padding: 10px;
+}
+
+.room.selected {
+  border-color: #b88947;
+}
+
+.notice,
+.errorText {
+  color: #ffb1a8;
+  font-size: 13px;
+}
+
+.shopPanel {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #403d35;
+  background: #211f1b;
+}
+
+.shopPanel h2 {
+  margin-bottom: 0;
+}
+
+.shopPanel > span {
+  color: #f0c96a;
+  font-size: 13px;
+}
+
+.shopList {
+  display: grid;
+  gap: 7px;
+  max-height: 180px;
+  overflow: auto;
+}
+
+.shopList button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 8px;
+  border: 1px solid #514d42;
+  border-radius: 3px;
+  color: #f7f2e8;
+  background: #171614;
+}
+
+.shopList button:hover {
+  border-color: #b88947;
+}
+
+.shopList small {
+  color: #aaa493;
+}
+
+.playSurface {
+  min-width: 0;
+  padding: 14px;
+}
+
+.topBar {
+  display: grid;
+  grid-template-columns: 180px minmax(240px, 1fr) auto auto;
+  gap: 12px;
+  align-items: center;
+  min-height: 62px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #3b3932;
+}
+
+.topBar > div {
+  display: grid;
+  gap: 4px;
+}
+
+.privateRule {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  min-width: 0;
+  padding: 9px 11px;
+  border: 1px solid #4f4a3e;
+  background: #211e19;
+}
+
+.privateRule span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gameGrid {
+  display: grid;
+  grid-template-columns: minmax(520px, 1fr) 300px 300px;
+  gap: 14px;
+  padding-top: 14px;
+}
+
+.canvasWrap {
+  position: relative;
+  min-height: 420px;
+  border: 2px solid #2a3545;
+  background: #131313;
+  box-shadow: inset 0 0 0 4px #0a0d13;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 98 / 59;
+}
+
+.locationBadge {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  padding: 7px 10px;
+  border: 1px solid #595448;
+  border-radius: 3px;
+  background: rgba(22, 21, 18, .88);
+}
+
+.actionPanel,
+.chatPanel {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+.actionPanel section,
+.chatPanel {
+  padding: 12px;
+  border: 1px solid #3d3a32;
+  background: #191815;
+}
+
+h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.actionButton {
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+}
+
+.actionButton.danger {
+  border-color: #704040;
+  background: #352222;
+}
+
+select,
+input {
+  width: 100%;
+  min-height: 38px;
+  margin-bottom: 8px;
+  border: 1px solid #514d42;
+  border-radius: 3px;
+  color: #f7f2e8;
+  background: #11110f;
+  padding: 0 10px;
+}
+
+.logList,
+.chatList {
+  display: grid;
+  gap: 8px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.logList p,
+.chatList p {
+  margin: 0;
+  padding: 8px;
+  color: #ded8c7;
+  background: #22201b;
+  border-left: 3px solid #8e5d25;
+}
+
+.chatList {
+  min-height: 360px;
+}
+
+.chatList strong {
+  display: block;
+  margin-bottom: 3px;
+  color: #f0c96a;
+}
+
+.adminPanel {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid #3d3a32;
+  background: #191815;
+}
+
+.adminPanel header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.adminPanel header span {
+  color: #aaa493;
+  font-size: 13px;
+}
+
+.adminGrid {
+  display: grid;
+  grid-template-columns: 320px minmax(320px, 1fr);
+  gap: 12px;
+}
+
+.adminList {
+  display: grid;
+  gap: 8px;
+  max-height: 360px;
+  margin-bottom: 10px;
+  overflow: auto;
+}
+
+.adminTabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+  margin: 0 0 10px;
+}
+
+.adminTabs button {
+  min-height: 34px;
+  border: 1px solid #514d42;
+  border-radius: 3px;
+  color: #f7f2e8;
+  background: #171614;
+}
+
+.adminTabs button.selected {
+  border-color: #b88947;
+  background: #342816;
+}
+
+.adminList button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid #514d42;
+  border-radius: 3px;
+  color: #f7f2e8;
+  background: #24221d;
+}
+
+.adminList button.selected {
+  border-color: #b88947;
+  background: #342816;
+}
+
+.adminList span {
+  color: #aaa493;
+  font-size: 12px;
+}
+
+textarea {
+  width: 100%;
+  min-height: 360px;
+  padding: 12px;
+  resize: vertical;
+  border: 1px solid #514d42;
+  border-radius: 3px;
+  color: #f7f2e8;
+  background: #11110f;
+  font: 13px/1.45 Consolas, "Courier New", monospace;
+}
+
+.adminActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.emptyState,
+.authScreen {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+}
+
+.emptyState {
+  min-height: calc(100vh - 28px);
+  text-align: center;
+}
+
+.authForm {
+  display: grid;
+  gap: 10px;
+  width: min(420px, calc(100vw - 28px));
+  padding: 24px;
+  border: 1px solid #49453c;
+  background: #191815;
+}
+
+.segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.segmented button.active {
+  border-color: #b88947;
+  background: #3a2d1c;
+}
+
+@media (max-width: 1180px) {
+  .appShell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    border-right: 0;
+    border-bottom: 1px solid #3b3932;
+  }
+
+  .gameGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .adminGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .topBar {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 680px) {
+  .playSurface,
+  .sidebar {
+    padding: 10px;
+  }
+
+  .canvasWrap {
+    min-height: 250px;
+  }
+}

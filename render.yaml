@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: rule-company
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run render:build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: rule-company-db
+          property: connectionString
+
+databases:
+  - name: rule-company-db
+    plan: free

@@ -1,0 +1,217 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String         @id @default(cuid())
+  email        String         @unique
+  name         String
+  passwordHash String
+  coins        Int            @default(300)
+  isAdmin      Boolean        @default(false)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  matchPlayers MatchPlayer[]
+  purchases    PurchaseLog[]
+  inventory    InventoryItem[]
+  friendshipsA Friendship[]   @relation("Requester")
+  friendshipsB Friendship[]   @relation("Receiver")
+}
+
+model Friendship {
+  id          String   @id @default(cuid())
+  requesterId String
+  receiverId  String
+  status      String
+  createdAt   DateTime @default(now())
+  requester   User     @relation("Requester", fields: [requesterId], references: [id])
+  receiver    User     @relation("Receiver", fields: [receiverId], references: [id])
+}
+
+model Room {
+  id        String   @id @default(cuid())
+  name      String
+  status    String   @default("waiting")
+  createdAt DateTime @default(now())
+  matches   Match[]
+}
+
+model Match {
+  id                String        @id @default(cuid())
+  roomId            String
+  status            String
+  currentPhase      String
+  phaseStartedAt    DateTime?
+  phaseEndsAt       DateTime?
+  activeEvents      Json          @default("[]")
+  selectedEventPool Json          @default("[]")
+  bossPlayerId      String?
+  workProgress      Int           @default(0)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  room              Room          @relation(fields: [roomId], references: [id])
+  players           MatchPlayer[]
+  logs              MatchLog[]
+  guesses           GuessLog[]
+  chats             ChatMessage[]
+}
+
+model MatchPlayer {
+  id               String   @id @default(cuid())
+  matchId          String
+  userId           String
+  faction          String
+  employeeRoleId   String?
+  isBoss           Boolean  @default(false)
+  privateRuleId    String
+  hearts           Int      @default(3)
+  alive            Boolean  @default(true)
+  score            Int      @default(0)
+  roundScore       Int      @default(0)
+  kills            Int      @default(0)
+  deaths           Int      @default(0)
+  completedTasks   Int      @default(0)
+  accusedBossUsed  Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  match            Match    @relation(fields: [matchId], references: [id])
+  user             User     @relation(fields: [userId], references: [id])
+}
+
+model Rule {
+  id         String @id
+  title      String
+  text       String
+  category   String
+  difficulty Int
+}
+
+model Task {
+  id       String @id
+  name     String
+  area     String
+  duration Int
+  score    Int
+  kind     String
+}
+
+model ShopItem {
+  id          String @id
+  name        String
+  description String
+  price       Int
+  effectType  String
+  available   Boolean @default(true)
+}
+
+model CharacterSkin {
+  id          String  @id
+  name        String
+  description String
+  imageUrl    String
+  price       Int
+  available   Boolean @default(true)
+  faction     String?
+}
+
+model InventoryItem {
+  id        String   @id @default(cuid())
+  userId    String
+  itemId    String
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model MatchHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  matchId   String
+  result    String
+  score     Int
+  coins     Int
+  createdAt DateTime @default(now())
+}
+
+model GuessLog {
+  id            String   @id @default(cuid())
+  matchId       String
+  guesserId     String
+  targetId      String
+  guessedRuleId String
+  isCorrect     Boolean
+  guessType     String
+  createdAt     DateTime @default(now())
+  match         Match    @relation(fields: [matchId], references: [id])
+}
+
+model ChatMessage {
+  id         String   @id @default(cuid())
+  matchId    String?
+  roomId     String?
+  senderId   String
+  senderName String
+  channel    String
+  message    String
+  createdAt  DateTime @default(now())
+  match      Match?   @relation(fields: [matchId], references: [id])
+}
+
+model MatchLog {
+  id        String   @id @default(cuid())
+  matchId   String
+  type      String
+  payload   Json
+  createdAt DateTime @default(now())
+  match     Match    @relation(fields: [matchId], references: [id])
+}
+
+model SpiritualEvent {
+  id          String @id
+  name        String
+  description String
+  duration    Int
+  effectType  String
+}
+
+model Sabotage {
+  id             String @id
+  name           String
+  description    String
+  energyCost     Int
+  cooldown       Int
+  duration       Int?
+  targetType     String
+  effectType     String
+  suspicionGain  Int
+}
+
+model BossPassive {
+  id                 String @id
+  name               String
+  description        String
+  effectType         String
+  minPlayersRequired Int
+}
+
+model EmployeeRole {
+  id           String @id
+  name         String
+  description  String
+  activeSkill  String?
+  passiveSkill String?
+  cooldown     Int
+}
+
+model PurchaseLog {
+  id        String   @id @default(cuid())
+  userId    String
+  itemId    String
+  coins     Int
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
