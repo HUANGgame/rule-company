@@ -251,6 +251,7 @@ function App() {
                 meId={auth.user.id}
                 tasks={content.tasks}
                 canDoTasks={privateState?.faction !== "boss"}
+                lockedAreas={state.activeSabotages.filter((entry) => entry.sabotageId === "lock-door" && entry.area).map((entry) => entry.area!)}
                 onMove={(dx, dy) => emit("player_move", { roomId: state.roomId, dx, dy })}
                 onInteract={(taskId) => emit("start_task", { roomId: state.roomId, taskId })}
                 onToggleDoor={(doorId) => emit("toggle_door", { roomId: state.roomId, doorId })}
@@ -750,7 +751,7 @@ const mapRooms = [
   { x: 980, y: 610, width: 280, height: 190, color: "#25201b", label: "財務室" }
 ];
 
-function GameCanvas({ state, meId, tasks, canDoTasks, onMove, onInteract, onToggleDoor }: { state: GameState; meId: string; tasks: TaskDef[]; canDoTasks: boolean; onMove: (dx: number, dy: number) => void; onInteract: (taskId: string) => void; onToggleDoor: (doorId: string) => void }) {
+function GameCanvas({ state, meId, tasks, canDoTasks, lockedAreas, onMove, onInteract, onToggleDoor }: { state: GameState; meId: string; tasks: TaskDef[]; canDoTasks: boolean; lockedAreas: string[]; onMove: (dx: number, dy: number) => void; onInteract: (taskId: string) => void; onToggleDoor: (doorId: string) => void }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const joystickRef = useRef<HTMLDivElement | null>(null);
   const joystickDirection = useRef<[number, number]>([0, 0]);
@@ -772,9 +773,9 @@ function GameCanvas({ state, meId, tasks, canDoTasks, onMove, onInteract, onTogg
     if (!me) return undefined;
     return state.doors
       .map((door) => ({ door, distance: Math.hypot(me.x - (door.x + door.width / 2), me.y - (door.y + door.height / 2)) }))
-      .filter((entry) => entry.distance <= 78)
+      .filter((entry) => entry.distance <= 78 && !lockedAreas.includes(entry.door.area))
       .sort((a, b) => a.distance - b.distance)[0]?.door;
-  }, [me, state.doors]);
+  }, [lockedAreas, me, state.doors]);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -999,6 +1000,7 @@ function ActionPanel({ state, meId, content, privateState, isBoss, canDoTasks, a
   const activeTaskDef = content.tasks.find((task) => task.id === myActiveTask?.taskId);
   const activeTaskRemaining = myActiveTask ? Math.max(0, Math.ceil((myActiveTask.endsAt - now) / 1000)) : 0;
   const hasActiveTask = Boolean(myActiveTask);
+  const phaseBlocksNewTasks = state.phase === "final_work" || state.phase === "escape" || state.phase === "ended";
   const availableTasks = canDoTasks ? content.tasks.filter((task) => task.area === me?.currentArea) : [];
   const [targetId, setTargetId] = useState("");
   const [ruleId, setRuleId] = useState("");
@@ -1050,7 +1052,7 @@ function ActionPanel({ state, meId, content, privateState, isBoss, canDoTasks, a
         {availableTasks.map((task) => {
           const distance = taskDistanceFromPlayer(me, task);
           const nearEnough = distance <= 88;
-          const disabledReason = hasActiveTask ? "已有任務進行中" : nearEnough ? "" : "靠近任務物件才能開始";
+          const disabledReason = phaseBlocksNewTasks ? "目前階段不能開始新任務" : hasActiveTask ? "已有任務進行中" : nearEnough ? "" : "靠近任務物件才能開始";
           return (
             <article key={task.id} className="taskDetailCard">
               <header>

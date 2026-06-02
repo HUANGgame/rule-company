@@ -285,6 +285,7 @@ export function toggleDoor(roomId: string, playerId: string, doorId: string) {
   const player = mustPlayer(room, playerId);
   const door = room.state.doors.find((entry) => entry.id === doorId);
   if (!door) throw new Error("Door not found");
+  if (isDoorLocked(room, door.area)) throw new Error("門禁鎖定中，暫時無法操作這扇門");
   if (distance(player.x, player.y, door.x + door.width / 2, door.y + door.height / 2) > 78) throw new Error("請靠近門再互動");
   door.open = !door.open;
   room.state.logs.unshift(`${player.name} ${door.open ? "打開" : "關閉"} ${door.name}`);
@@ -297,6 +298,8 @@ export function startTask(roomId: string, playerId: string, taskId: string) {
   const privateState = room.privateByPlayer.get(playerId);
   const task = tasks.find((entry) => entry.id === taskId);
   if (!task) throw new Error("Task not found");
+  if (room.state.phase === "final_work") throw new Error("最後工時不可開始新任務");
+  if (room.state.phase === "escape" || room.state.phase === "ended") throw new Error("目前階段不能開始任務");
   if (player.faction === "boss") throw new Error("老闆不用完成工作");
   if (!player.alive) throw new Error("已淘汰玩家不能工作");
   if (player.currentArea !== task.area) throw new Error(`請先前往 ${task.area}`);
@@ -603,13 +606,18 @@ function canStandAt(room: RoomRuntime, x: number, y: number) {
 
 function canStandPoint(room: RoomRuntime, x: number, y: number) {
   if (hallways.some((rect) => containsPoint(rect, x, y))) return true;
-  if (room.state.doors.some((door) => door.open && containsPoint(door, x, y))) return true;
+  if (room.state.doors.some((door) => door.open && !isDoorLocked(room, door.area) && containsPoint(door, x, y))) return true;
   return roomsLayout.some((rect) => {
     if (!containsPoint(rect, x, y)) return false;
     const door = room.state.doors.find((entry) => entry.area === rect.area);
+    if (isDoorLocked(room, rect.area) && door && isNearDoor(x, y, door)) return false;
     if (!door || door.open) return true;
     return !isNearDoor(x, y, door);
   });
+}
+
+function isDoorLocked(room: RoomRuntime, area: string) {
+  return room.state.activeSabotages.some((entry) => entry.sabotageId === "lock-door" && entry.area === area);
 }
 
 function containsPoint(rect: { x: number; y: number; width: number; height: number }, x: number, y: number) {
