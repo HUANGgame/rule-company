@@ -129,8 +129,11 @@ function App() {
       body: JSON.stringify({ name: "夜班辦公室" })
     });
     const data = await res.json();
+    setState(data.state);
+    setPrivateState(null);
     setSelectedRoom(data.state.roomCode || data.state.roomId);
     setJoinCode(data.state.roomCode || "");
+    setPage("match");
     join(data.state.roomId);
   }
 
@@ -206,7 +209,7 @@ function App() {
         </nav>
         <div className="sidebarActions">
           <button className="primaryButton" onClick={() => { setPage("lobby"); createRoom(); }}><DoorOpen size={17} /> 建立房間</button>
-          <button className="ghostButton" onClick={() => { setPage("lobby"); join(joinCode); }} disabled={!joinCode.trim()}><RadioTower size={17} /> 加入房間</button>
+          <button className="ghostButton" onClick={() => { setPage("lobby"); join(joinCode); }} disabled={joinCode.trim().length < 6}><RadioTower size={17} /> 加入房間</button>
         </div>
         <div className="notice">{notice}</div>
       </aside>
@@ -226,7 +229,7 @@ function App() {
             roomCode={roomCode}
             minPlayers={minPlayers}
             onReady={() => emit("player_ready", { roomId: state.roomId })}
-            onStart={() => emit("start_match", { roomId: state.roomId, devMode: true })}
+            onStart={() => emit("start_match", { roomId: state.roomId })}
           />
         ) : (
           <div className="pageStack">
@@ -236,7 +239,7 @@ function App() {
                 me={me}
                 privateState={privateState}
                 onReady={() => emit("player_ready", { roomId: state.roomId })}
-                onStart={() => emit("start_match", { roomId: state.roomId, devMode: true })}
+                onStart={() => emit("start_match", { roomId: state.roomId })}
                 gameConfig={content.gameConfig}
               />
             )}

@@ -212,7 +212,7 @@ app.patch("/api/admin/content/:collection/:id/availability", requireAuth, requir
 });
 
 app.get("/api/rooms", (_req, res) => {
-  res.json({ rooms: listRooms() });
+  res.json({ rooms: [] });
 });
 
 app.post("/api/rooms", requireAuth, (req: AuthedRequest, res) => {
@@ -288,11 +288,14 @@ io.use((socket, next) => {
 });
 
 io.on("connection", (socket) => {
-  const user = socket.data.user as { id: string; name: string; email: string; coins: number };
+  const user = socket.data.user as { id: string; name: string; email: string; coins: number; isAdmin?: boolean };
 
   socket.on("join_room", ({ roomId }, reply) => {
     try {
       const room = joinRoom(roomId, user, socket.id);
+      for (const joinedRoom of socket.rooms) {
+        if (joinedRoom !== socket.id && joinedRoom !== room.state.roomId) socket.leave(joinedRoom);
+      }
       socket.join(room.state.roomId);
       emitRoom(room.state.roomId);
       reply?.({ ok: true, state: room.state, privateState: getPrivate(room.state.roomId, user.id) });
@@ -302,7 +305,12 @@ io.on("connection", (socket) => {
   });
 
   socket.on("player_ready", ({ roomId }, reply) => safeReply(reply, () => emitAndReturn(roomId, toggleReady(roomId, user.id))));
-  socket.on("start_match", ({ roomId, devMode }, reply) => safeReply(reply, () => emitAndReturn(roomId, startMatch(roomId, Boolean(devMode)))));
+  socket.on("start_match", ({ roomId, devMode }, reply) =>
+    safeReply(reply, () => {
+      const allowDevMode = process.env.NODE_ENV !== "production" || Boolean(user.isAdmin);
+      return emitAndReturn(roomId, startMatch(roomId, allowDevMode && Boolean(devMode)));
+    })
+  );
   socket.on("player_move", ({ roomId, dx, dy }, reply) => safeReply(reply, () => emitAndReturn(roomId, movePlayer(roomId, user.id, Number(dx), Number(dy)))));
   socket.on("start_task", ({ roomId, taskId }, reply) => safeReply(reply, () => emitAndReturn(roomId, startTask(roomId, user.id, taskId))));
   socket.on("toggle_door", ({ roomId, doorId }, reply) => safeReply(reply, () => emitAndReturn(roomId, toggleDoor(roomId, user.id, String(doorId || "")))));

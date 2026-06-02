@@ -151,10 +151,10 @@ export function toggleReady(roomId: string, playerId: string) {
   return room.state;
 }
 
-export function startMatch(roomId: string, devMode = true) {
+export function startMatch(roomId: string, devMode = false) {
   const room = mustRoom(roomId);
   const config = getGameConfig();
-  const minPlayers = devMode ? config.room.devMinPlayers : config.room.minPlayers;
+  const minPlayers = devMode ? config.room.devMinPlayers : room.botsAdded ? Math.min(config.room.minPlayers, room.state.players.length) : config.room.minPlayers;
   if (room.state.players.length < minPlayers) throw new Error(`至少需要 ${minPlayers} 人開始`);
   if (room.state.status === "playing") return room.state;
 
