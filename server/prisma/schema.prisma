@@ -102,12 +102,16 @@ model Rule {
 }
 
 model Task {
-  id       String @id
-  name     String
-  area     String
-  duration Int
-  score    Int
-  kind     String
+  id          String   @id
+  name        String
+  area        String
+  duration    Int
+  score       Int
+  kind        String
+  description String?
+  objective   String?
+  steps       String[] @default([])
+  risk        String?
 }
 
 model ShopItem {

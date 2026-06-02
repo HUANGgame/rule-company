@@ -8,7 +8,7 @@ import type {
   RoomSummary
 } from "@rule-company/shared";
 import { getGameConfig } from "./config.js";
-import { employeeRoles, rules, sabotages, spiritualEvents, tasks } from "./content.js";
+import { employeeRoles, rules, sabotages, shopItems, spiritualEvents, tasks } from "./content.js";
 
 interface RoomRuntime {
   name: string;
@@ -120,6 +120,10 @@ export function startMatch(roomId: string, devMode = true) {
       faction: isBoss ? "boss" : "employee",
       privateRule,
       employeeRole: isBoss ? undefined : role,
+      itemEffects: {
+        taskBoosts: 0,
+        usedItems: []
+      },
       bossState: isBoss
         ? {
             playerId: player.id,
@@ -212,13 +216,18 @@ export function movePlayer(roomId: string, playerId: string, dx: number, dy: num
 export function startTask(roomId: string, playerId: string, taskId: string) {
   const room = mustRoom(roomId);
   const player = mustPlayer(room, playerId);
+  const privateState = room.privateByPlayer.get(playerId);
   const task = tasks.find((entry) => entry.id === taskId);
   if (!task) throw new Error("Task not found");
   if (player.faction === "boss") throw new Error("老闆不用完成工作");
   if (!player.alive) throw new Error("已淘汰玩家不能工作");
   if (player.currentArea !== task.area) throw new Error(`請先前往 ${task.area}`);
   if (room.state.activeTasks.some((entry) => entry.playerId === playerId)) throw new Error("已有進行中的任務");
-  const multiplier = room.state.activeEvents.some((entry) => entry.effectType === "printer_noise") && ["Reception", "Archive"].includes(task.area) ? 1.4 : 1;
+  let multiplier = room.state.activeEvents.some((entry) => entry.effectType === "printer_noise") && ["Reception", "Archive"].includes(task.area) ? 1.4 : 1;
+  if ((privateState?.itemEffects?.taskBoosts || 0) > 0) {
+    multiplier *= 0.75;
+    privateState!.itemEffects!.taskBoosts -= 1;
+  }
   room.state.activeTasks.push({
     playerId,
     taskId,
@@ -227,6 +236,35 @@ export function startTask(roomId: string, playerId: string, taskId: string) {
     progress: 0
   });
   room.state.logs.unshift(`${player.name} 開始 ${task.name}`);
+  return room.state;
+}
+
+export function useInventoryItem(roomId: string, playerId: string, itemId: string) {
+  const room = mustRoom(roomId);
+  const player = mustPlayer(room, playerId);
+  const privateState = room.privateByPlayer.get(playerId);
+  const item = shopItems.find((entry) => entry.id === itemId && entry.available);
+  if (!item) throw new Error("Item not found");
+  if (!privateState) throw new Error("Match has not started");
+  if (room.state.status !== "playing") throw new Error("道具只能在遊戲開始後使用");
+  privateState.itemEffects ||= { taskBoosts: 0, usedItems: [] };
+
+  if (item.effectType === "resist_darkness") {
+    const before = room.state.activeSabotages.length;
+    room.state.activeSabotages = room.state.activeSabotages.filter((entry) => entry.sabotageId !== "lights-out");
+    if (before === room.state.activeSabotages.length) throw new Error("目前沒有熄燈干擾");
+  } else if (item.effectType === "unlock_once") {
+    const before = room.state.activeSabotages.length;
+    room.state.activeSabotages = room.state.activeSabotages.filter((entry) => entry.sabotageId !== "lock-door" || entry.area !== player.currentArea);
+    if (before === room.state.activeSabotages.length) throw new Error("目前區域沒有門禁鎖定");
+  } else if (item.effectType === "task_boost") {
+    privateState.itemEffects.taskBoosts += 1;
+  } else {
+    throw new Error("此道具目前不能在遊戲中使用");
+  }
+
+  privateState.itemEffects.usedItems.unshift(itemId);
+  room.state.logs.unshift(`${player.name} 使用 ${item.name}`);
   return room.state;
 }
 

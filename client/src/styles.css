@@ -272,6 +272,127 @@ button {
   padding: 14px;
 }
 
+.lobbyScreen,
+.matchmakingScreen {
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  min-height: calc(100vh - 28px);
+  padding: 22px;
+  border: 1px solid #3b3932;
+  background: #171614;
+}
+
+.lobbyScreen header,
+.matchmakingScreen header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #3b3932;
+}
+
+.lobbyScreen header > div:first-child,
+.matchmakingScreen header {
+  min-width: 0;
+}
+
+.lobbyScreen header span,
+.matchmakingScreen header span {
+  color: #f0c96a;
+  font-size: 12px;
+}
+
+.lobbyScreen h2,
+.matchmakingScreen h2 {
+  margin-top: 6px;
+  font-size: 28px;
+}
+
+.lobbyScreen p,
+.matchmakingScreen p,
+.inventoryCard p {
+  margin: 0;
+  color: #cfc7b6;
+  line-height: 1.5;
+}
+
+.lobbyActions,
+.matchActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.lobbyRoomGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.lobbyRoomCard,
+.matchPlayer {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid #514d42;
+  color: #f7f2e8;
+  text-align: left;
+  background: #211f1b;
+}
+
+.lobbyRoomCard:hover {
+  border-color: #b88947;
+}
+
+.lobbyRoomCard span,
+.matchPlayer span,
+.taskDetailCard span,
+.inventoryCard span {
+  color: #aaa493;
+  font-size: 13px;
+}
+
+.lobbyRoomCard b {
+  color: #f0c96a;
+}
+
+.matchStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.matchStats > div {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border: 1px solid #514d42;
+  background: #211f1b;
+}
+
+.matchStats strong {
+  color: #f0c96a;
+  font-size: 30px;
+}
+
+.matchStats span {
+  color: #aaa493;
+  font-size: 13px;
+}
+
+.matchPlayers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.matchPlayer.self {
+  border-color: #b88947;
+  background: #2b2418;
+}
+
 .topBar {
   display: grid;
   grid-template-columns: 180px minmax(240px, 1fr) auto auto;
@@ -361,6 +482,76 @@ h2 {
   width: 100%;
   margin-bottom: 8px;
   padding: 8px 10px;
+}
+
+.taskDetailCard,
+.inventoryCard {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 12px;
+  border: 1px solid #514d42;
+  background: #211f1b;
+}
+
+.taskDetailCard header,
+.inventoryCard > div {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.taskDetailCard header > div {
+  display: grid;
+  gap: 3px;
+}
+
+.taskDetailCard b {
+  color: #f0c96a;
+  white-space: nowrap;
+}
+
+.taskDetailCard p {
+  margin: 0;
+  color: #ded8c7;
+  line-height: 1.45;
+}
+
+.taskDetailCard dl {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.taskDetailCard dl > div {
+  display: grid;
+  gap: 2px;
+}
+
+.taskDetailCard dt {
+  color: #f0c96a;
+  font-size: 12px;
+}
+
+.taskDetailCard dd {
+  margin: 0;
+  color: #cfc7b6;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.taskDetailCard ol {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 20px;
+  color: #ded8c7;
+  font-size: 13px;
+}
+
+.inventoryCard .ghostButton {
+  width: 100%;
 }
 
 .actionButton.danger {

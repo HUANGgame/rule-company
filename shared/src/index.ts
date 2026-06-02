@@ -30,6 +30,7 @@ export interface PrivatePlayerState {
   privateRule: Rule;
   employeeRole?: EmployeeRole;
   bossState?: BossState;
+  itemEffects?: ItemEffects;
 }
 
 export interface Rule {
@@ -47,6 +48,15 @@ export interface TaskDef {
   duration: number;
   score: number;
   kind: "sequence" | "memory" | "timing" | "sorting";
+  description?: string;
+  objective?: string;
+  steps?: string[];
+  risk?: string;
+}
+
+export interface ItemEffects {
+  taskBoosts: number;
+  usedItems: string[];
 }
 
 export interface EmployeeRole {

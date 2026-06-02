@@ -25,6 +25,7 @@ import {
   startTask,
   tickRooms,
   toggleReady,
+  useInventoryItem,
   useSabotage
 } from "./game.js";
 
@@ -257,7 +258,13 @@ app.get("/api/shop/inventory", requireAuth, async (req: AuthedRequest, res) => {
     return;
   }
   const inventory = await prisma.inventoryItem.findMany({ where: { userId: req.user!.id }, orderBy: { createdAt: "desc" } });
-  res.json({ inventory });
+  const catalog = [...shopItems, ...characterSkins];
+  res.json({
+    inventory: inventory.map((entry) => ({
+      ...entry,
+      item: catalog.find((item) => item.id === entry.itemId)
+    }))
+  });
 });
 app.get("/api/leaderboard/coins", async (_req, res) => {
   const users = prisma
@@ -310,6 +317,36 @@ io.on("connection", (socket) => {
   socket.on("game_chat_message", ({ roomId, message, channel }, reply) =>
     safeReply(reply, () => emitAndReturn(roomId, addChat(roomId, user.id, user.name, String(message || ""), channel || "game")))
   );
+  socket.on("use_inventory_item", async ({ roomId, itemId, inventoryId }, reply) => {
+    try {
+      const requestedItemId = String(itemId || "");
+      if (prisma) {
+        const inventory = await prisma.inventoryItem.findFirst({
+          where: {
+            id: inventoryId ? String(inventoryId) : undefined,
+            userId: user.id,
+            itemId: requestedItemId,
+            quantity: { gt: 0 }
+          }
+        });
+        if (!inventory) throw new Error("背包沒有這個道具");
+        const state = useInventoryItem(String(roomId), user.id, requestedItemId);
+        if (inventory.quantity > 1) {
+          await prisma.inventoryItem.update({ where: { id: inventory.id }, data: { quantity: { decrement: 1 } } });
+        } else {
+          await prisma.inventoryItem.delete({ where: { id: inventory.id } });
+        }
+        emitRoom(String(roomId));
+        reply?.({ ok: true, state });
+        return;
+      }
+      const state = useInventoryItem(String(roomId), user.id, requestedItemId);
+      emitRoom(String(roomId));
+      reply?.({ ok: true, state });
+    } catch (error) {
+      reply?.({ ok: false, error: message(error) });
+    }
+  });
   socket.on("get_private_state", ({ roomId }, reply) => reply?.({ ok: true, privateState: getPrivate(roomId, user.id) }));
 });
 
