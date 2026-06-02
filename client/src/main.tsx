@@ -202,7 +202,13 @@ function App() {
               onStart={() => emit("start_match", { roomId: state.roomId, devMode: true })}
             />
             <div className="gameGrid">
-              <GameCanvas state={state} meId={auth.user.id} onMove={(dx, dy) => emit("player_move", { roomId: state.roomId, dx, dy })} />
+              <GameCanvas
+                state={state}
+                meId={auth.user.id}
+                tasks={content.tasks}
+                onMove={(dx, dy) => emit("player_move", { roomId: state.roomId, dx, dy })}
+                onInteract={(taskId) => emit("start_task", { roomId: state.roomId, taskId })}
+              />
               <ActionPanel state={state} meId={auth.user.id} content={content} privateState={privateState} isBoss={isBoss} auth={auth} emit={emit} />
               <ChatPanel state={state} emit={emit} />
             </div>
@@ -672,9 +678,14 @@ function TopBar({ state, me, privateState, onReady, onStart }: { state: GameStat
   );
 }
 
-function GameCanvas({ state, meId, onMove }: { state: GameState; meId: string; onMove: (dx: number, dy: number) => void }) {
+function GameCanvas({ state, meId, tasks, onMove, onInteract }: { state: GameState; meId: string; tasks: TaskDef[]; onMove: (dx: number, dy: number) => void; onInteract: (taskId: string) => void }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const joystickRef = useRef<HTMLDivElement | null>(null);
+  const joystickDirection = useRef<[number, number]>([0, 0]);
+  const [joystickKnob, setJoystickKnob] = useState({ x: 0, y: 0 });
   const me = state.players.find((player) => player.id === meId);
+  const nearbyTasks = tasks.filter((task) => task.area === me?.currentArea);
+  const primaryTask = nearbyTasks[0];
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -752,16 +763,73 @@ function GameCanvas({ state, meId, onMove }: { state: GameState; meId: string; o
     const handler = (event: KeyboardEvent) => {
       const keyMap: Record<string, [number, number]> = { w: [0, -1], s: [0, 1], a: [-1, 0], d: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
       const delta = keyMap[event.key];
-      if (delta) onMove(delta[0], delta[1]);
+      const target = event.target as HTMLElement | null;
+      if (delta && !["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(target?.tagName || "")) {
+        event.preventDefault();
+        onMove(delta[0], delta[1]);
+      }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [onMove]);
 
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      const [dx, dy] = joystickDirection.current;
+      if (dx || dy) onMove(dx, dy);
+    }, 130);
+    return () => window.clearInterval(interval);
+  }, [onMove]);
+
+  function updateJoystick(clientX: number, clientY: number) {
+    const rect = joystickRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const radius = rect.width / 2;
+    const rawX = clientX - rect.left - radius;
+    const rawY = clientY - rect.top - radius;
+    const length = Math.hypot(rawX, rawY);
+    const limit = radius - 18;
+    const scale = length > limit ? limit / length : 1;
+    const x = rawX * scale;
+    const y = rawY * scale;
+    setJoystickKnob({ x, y });
+    joystickDirection.current = length < 10 ? [0, 0] : [Math.abs(rawX) > 16 ? Math.sign(rawX) : 0, Math.abs(rawY) > 16 ? Math.sign(rawY) : 0];
+  }
+
+  function resetJoystick() {
+    joystickDirection.current = [0, 0];
+    setJoystickKnob({ x: 0, y: 0 });
+  }
+
   return (
     <div className="canvasWrap">
       <canvas ref={canvasRef} width={980} height={590} />
       <div className="locationBadge">{me?.currentArea || "Reception"}</div>
+      <div className="movementHint">WASD / 方向鍵移動</div>
+      {primaryTask && (
+        <button className="interactButton" onClick={() => onInteract(primaryTask.id)}>
+          <ClipboardList size={17} />
+          互動：{primaryTask.name}
+        </button>
+      )}
+      <div
+        className="mobileJoystick"
+        ref={joystickRef}
+        onPointerDown={(event) => {
+          event.currentTarget.setPointerCapture(event.pointerId);
+          updateJoystick(event.clientX, event.clientY);
+        }}
+        onPointerMove={(event) => {
+          if (event.currentTarget.hasPointerCapture(event.pointerId)) updateJoystick(event.clientX, event.clientY);
+        }}
+        onPointerUp={(event) => {
+          event.currentTarget.releasePointerCapture(event.pointerId);
+          resetJoystick();
+        }}
+        onPointerCancel={resetJoystick}
+      >
+        <span style={{ transform: `translate(${joystickKnob.x}px, ${joystickKnob.y}px)` }} />
+      </div>
     </div>
   );
 }
