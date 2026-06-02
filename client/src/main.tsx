@@ -5,7 +5,7 @@ import { BriefcaseBusiness, DoorOpen, Eye, EyeOff, KeyRound, LogIn, MessageSquar
 import type { CharacterSkin, GameConfig, GameState, PrivatePlayerState, Rule, AuthUser, RoomSummary, Sabotage, TaskDef, EmployeeRole } from "@rule-company/shared";
 import "./styles.css";
 
-const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3001";
+const apiUrl = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "http://localhost:3001" : window.location.origin);
 const socketUrl = import.meta.env.VITE_SOCKET_URL || apiUrl;
 
 type AuthState = { user: AuthUser; token: string };
