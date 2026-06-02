@@ -80,7 +80,6 @@ function App() {
   const [page, setPage] = useState<AppPage>("lobby");
   const [notice, setNotice] = useState("連線準備中");
 
-  const me = state?.players.find((player) => player.id === auth?.user.id);
   const isBoss = privateState?.faction === "boss";
   const selectedRoomSummary = rooms.find((room) => room.id === selectedRoom || room.code === selectedRoom);
   const canOpenAdmin = !!auth && (auth.user.isAdmin || import.meta.env.DEV);
@@ -187,6 +186,7 @@ function App() {
   const roomName = state?.roomCode ? `房間 ${state.roomCode}` : selectedRoomSummary?.name || "匹配房間";
   const minPlayers = selectedRoomSummary?.minPlayers || content.gameConfig?.room.minPlayers || 4;
   const showTopBar = !!state && state.status !== "waiting" && (page === "map" || page === "tasks" || page === "chat");
+  const activeGame = state?.status === "playing";
 
   return (
     <main className="appShell">
@@ -208,8 +208,8 @@ function App() {
           ))}
         </nav>
         <div className="sidebarActions">
-          <button className="primaryButton" onClick={() => { setPage("lobby"); createRoom(); }}><DoorOpen size={17} /> 建立房間</button>
-          <button className="ghostButton" onClick={() => { setPage("lobby"); join(joinCode); }} disabled={joinCode.trim().length < 6}><RadioTower size={17} /> 加入房間</button>
+          <button className="primaryButton" disabled={activeGame} onClick={() => { setPage("lobby"); createRoom(); }}><DoorOpen size={17} /> 建立房間</button>
+          <button className="ghostButton" disabled={activeGame || joinCode.trim().length < 6} onClick={() => { setPage("lobby"); join(joinCode); }}><RadioTower size={17} /> 加入房間</button>
         </div>
         <div className="notice">{notice}</div>
       </aside>
@@ -236,10 +236,7 @@ function App() {
             {showTopBar && (
               <TopBar
                 state={state}
-                me={me}
                 privateState={privateState}
-                onReady={() => emit("player_ready", { roomId: state.roomId })}
-                onStart={() => emit("start_match", { roomId: state.roomId })}
                 gameConfig={content.gameConfig}
               />
             )}
@@ -698,7 +695,7 @@ function AuthPanel({ onAuth }: { onAuth: (auth: AuthState) => void }) {
   );
 }
 
-function TopBar({ state, me, privateState, onReady, onStart, gameConfig }: { state: GameState; me?: any; privateState: PrivatePlayerState | null; onReady: () => void; onStart: () => void; gameConfig?: GameConfig }) {
+function TopBar({ state, privateState, gameConfig }: { state: GameState; privateState: PrivatePlayerState | null; gameConfig?: GameConfig }) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 250);
@@ -727,8 +724,6 @@ function TopBar({ state, me, privateState, onReady, onStart, gameConfig }: { sta
         <Eye size={16} />
         <span>{privateState?.privateRule.title || "私人規則"}：{privateState?.privateRule.text || "遊戲開始後會分配私人規則。"}</span>
       </div>
-      <button className="ghostButton" onClick={onReady}><ShieldAlert size={17} /> {me?.ready ? "取消準備" : "準備"}</button>
-      <button className="primaryButton" onClick={onStart}><Play size={17} /> 重新開始</button>
     </header>
   );
 }
