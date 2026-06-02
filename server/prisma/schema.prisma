@@ -182,6 +182,7 @@ model Sabotage {
   id             String @id
   name           String
   description    String
+  bossOnly       Boolean @default(true)
   energyCost     Int
   cooldown       Int
   duration       Int?
