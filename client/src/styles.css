@@ -8,6 +8,13 @@
   box-sizing: border-box;
 }
 
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -30,16 +37,19 @@ button {
 .appShell {
   display: grid;
   grid-template-columns: 300px 1fr;
-  min-height: 100vh;
+  height: 100vh;
+  min-height: 0;
 }
 
 .sidebar {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  min-height: 0;
   padding: 18px;
   border-right: 1px solid #3b3932;
   background: #191815;
+  overflow: hidden;
 }
 
 .brandBlock h1,
@@ -65,6 +75,37 @@ button {
   padding: 12px;
   border: 1px solid #403d35;
   background: #211f1b;
+}
+
+.pageNav,
+.sidebarActions {
+  display: grid;
+  gap: 8px;
+}
+
+.pageNav {
+  min-height: 0;
+  overflow: auto;
+}
+
+.navButton {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid #514d42;
+  border-radius: 3px;
+  color: #f7f2e8;
+  text-align: left;
+  background: #22201b;
+}
+
+.navButton:hover,
+.navButton.active {
+  border-color: #b88947;
+  background: #342816;
 }
 
 .primaryButton,
@@ -172,9 +213,11 @@ button {
   background: rgba(3, 5, 8, .72);
 }
 
-.shopModal {
+.shopModal,
+.shopPage {
   display: grid;
   gap: 14px;
+  align-content: start;
   width: min(860px, calc(100vw - 28px));
   max-height: min(760px, calc(100vh - 28px));
   padding: 18px;
@@ -184,7 +227,15 @@ button {
   overflow: auto;
 }
 
-.shopModal header {
+.shopPage {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  box-shadow: none;
+}
+
+.shopModal header,
+.shopPage header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -193,12 +244,14 @@ button {
   padding-bottom: 12px;
 }
 
-.shopModal header > div {
+.shopModal header > div,
+.shopPage header > div {
   display: grid;
   gap: 4px;
 }
 
 .shopModal header span,
+.shopPage header span,
 .shopCard span {
   color: #aaa493;
   font-size: 13px;
@@ -268,8 +321,11 @@ button {
 }
 
 .playSurface {
+  height: 100vh;
+  min-height: 0;
   min-width: 0;
   padding: 14px;
+  overflow: hidden;
 }
 
 .lobbyScreen,
@@ -277,10 +333,12 @@ button {
   display: grid;
   align-content: start;
   gap: 18px;
-  min-height: calc(100vh - 28px);
+  height: 100%;
+  min-height: 0;
   padding: 22px;
   border: 1px solid #3b3932;
   background: #171614;
+  overflow: auto;
 }
 
 .lobbyScreen header,
@@ -489,8 +547,23 @@ button {
   padding-top: 14px;
 }
 
+.pageStack {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 14px;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.mapPage {
+  min-height: 0;
+  overflow: hidden;
+}
+
 .canvasWrap {
   position: relative;
+  height: 100%;
   min-height: 420px;
   border: 2px solid #2a3545;
   background: #131313;
@@ -500,8 +573,9 @@ button {
 canvas {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
   aspect-ratio: 98 / 59;
+  object-fit: contain;
 }
 
 .locationBadge {
@@ -605,6 +679,9 @@ canvas {
   display: grid;
   align-content: start;
   gap: 12px;
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
 }
 
 .actionPanel section,
@@ -734,7 +811,8 @@ input {
 }
 
 .chatList {
-  min-height: 360px;
+  min-height: 0;
+  max-height: none;
 }
 
 .chatList strong {
@@ -744,10 +822,13 @@ input {
 }
 
 .adminPanel {
-  margin-top: 14px;
+  height: 100%;
+  min-height: 0;
+  margin-top: 0;
   padding: 12px;
   border: 1px solid #3d3a32;
   background: #191815;
+  overflow: auto;
 }
 
 .adminPanel header {
@@ -949,11 +1030,40 @@ textarea {
 @media (max-width: 1180px) {
   .appShell {
     grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
   }
 
   .sidebar {
+    display: grid;
+    grid-template-columns: minmax(170px, auto) minmax(180px, 1fr) auto auto;
+    align-items: center;
+    gap: 10px;
     border-right: 0;
     border-bottom: 1px solid #3b3932;
+  }
+
+  .pageNav {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .navButton {
+    min-width: max-content;
+  }
+
+  .sidebarActions {
+    grid-auto-flow: column;
+    grid-auto-columns: max-content;
+  }
+
+  .notice {
+    max-width: 180px;
+  }
+
+  .playSurface {
+    height: auto;
   }
 
   .gameGrid {
@@ -977,6 +1087,25 @@ textarea {
   .playSurface,
   .sidebar {
     padding: 10px;
+  }
+
+  .sidebar {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .identity {
+    display: none;
+  }
+
+  .sidebarActions {
+    grid-auto-flow: row;
+    grid-auto-columns: auto;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .notice {
+    max-width: none;
   }
 
   .canvasWrap {

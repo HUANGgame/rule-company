@@ -42,6 +42,7 @@ type AuthState = { user: AuthUser; token: string };
 type ShopItem = { id: string; name: string; description: string; price: number; effectType: string; available: boolean };
 type InventoryEntry = { id: string; itemId: string; quantity: number; item?: ShopItem | CharacterSkin };
 type AdminCollection = keyof Omit<Content, "gameConfig"> | "gameConfig";
+type AppPage = "lobby" | "match" | "map" | "tasks" | "chat" | "shop" | "admin";
 
 type Content = {
   rules: Rule[];
@@ -75,11 +76,13 @@ function App() {
   const [privateState, setPrivateState] = useState<PrivatePlayerState | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
   const [selectedRoom, setSelectedRoom] = useState("");
+  const [page, setPage] = useState<AppPage>("lobby");
   const [notice, setNotice] = useState("連線準備中");
 
   const me = state?.players.find((player) => player.id === auth?.user.id);
   const isBoss = privateState?.faction === "boss";
   const selectedRoomSummary = rooms.find((room) => room.id === selectedRoom);
+  const canOpenAdmin = !!auth && (auth.user.isAdmin || import.meta.env.DEV);
 
   useEffect(() => {
     fetch(`${apiUrl}/api/content`)
@@ -102,6 +105,16 @@ function App() {
       next.close();
     };
   }, [auth]);
+
+  useEffect(() => {
+    setPage((current) => {
+      if (!state) return current === "shop" || (current === "admin" && canOpenAdmin) ? current : "lobby";
+      if (state.status === "waiting") return current === "shop" || (current === "admin" && canOpenAdmin) ? current : "match";
+      if (current === "lobby" || current === "match") return "map";
+      if (current === "admin" && !canOpenAdmin) return "map";
+      return current;
+    });
+  }, [canOpenAdmin, state?.status]);
 
   async function refreshRooms() {
     const data = await fetch(`${apiUrl}/api/rooms`).then((res) => res.json());
@@ -156,6 +169,19 @@ function App() {
 
   if (!auth) return <AuthPanel onAuth={updateAuth} />;
 
+  const navItems: Array<{ page: AppPage; label: string; icon: React.ReactNode; show: boolean }> = [
+    { page: "lobby", label: "主大廳", icon: <Users size={17} />, show: true },
+    { page: "match", label: "匹配", icon: <RadioTower size={17} />, show: state?.status === "waiting" },
+    { page: "map", label: "地圖", icon: <DoorOpen size={17} />, show: !!state && state.status !== "waiting" },
+    { page: "tasks", label: "任務 / 背包", icon: <Package size={17} />, show: !!state && state.status !== "waiting" },
+    { page: "chat", label: "聊天", icon: <MessageSquare size={17} />, show: !!state && state.status !== "waiting" },
+    { page: "shop", label: "商店", icon: <ShoppingBag size={17} />, show: true },
+    { page: "admin", label: "後台", icon: <ShieldAlert size={17} />, show: canOpenAdmin }
+  ];
+  const roomName = selectedRoomSummary?.name || "匹配房間";
+  const minPlayers = selectedRoomSummary?.minPlayers || content.gameConfig?.room.minPlayers || 4;
+  const showTopBar = !!state && state.status !== "waiting" && (page === "map" || page === "tasks" || page === "chat");
+
   return (
     <main className="appShell">
       <aside className="sidebar">
@@ -167,43 +193,55 @@ function App() {
           <strong>{auth.user.name}</strong>
           <span>{auth.user.email}</span>
         </div>
-        <button className="primaryButton" onClick={createRoom}><DoorOpen size={17} /> 建立房間</button>
-        <button className="ghostButton" onClick={refreshRooms}><RadioTower size={17} /> 更新房間</button>
-        <ShopPanel auth={auth} onAuth={updateAuth} />
-        <div className="roomList">
-          {rooms.map((room) => (
-            <button className={room.id === selectedRoom ? "room selected" : "room"} key={room.id} onClick={() => join(room.id)}>
-              <strong>{room.name}</strong>
-              <span>{room.status === "waiting" ? "等待匹配" : room.status === "playing" ? "遊戲中" : "已結束"} · {room.playerCount}/{room.maxPlayers}</span>
+        <nav className="pageNav" aria-label="主要頁面">
+          {navItems.filter((item) => item.show).map((item) => (
+            <button key={item.page} className={page === item.page ? "navButton active" : "navButton"} onClick={() => setPage(item.page)}>
+              {item.icon}
+              <span>{item.label}</span>
             </button>
           ))}
+        </nav>
+        <div className="sidebarActions">
+          <button className="primaryButton" onClick={() => { setPage("lobby"); createRoom(); }}><DoorOpen size={17} /> 建立房間</button>
+          <button className="ghostButton" onClick={() => { setPage("lobby"); refreshRooms(); }}><RadioTower size={17} /> 更新房間</button>
         </div>
         <div className="notice">{notice}</div>
       </aside>
 
       <section className="playSurface">
-        {!state ? (
+        {page === "shop" ? (
+          <ShopPanel auth={auth} onAuth={updateAuth} />
+        ) : page === "admin" && canOpenAdmin ? (
+          <AdminPanel auth={auth} />
+        ) : page === "lobby" || !state ? (
           <MainLobbyScreen rooms={rooms} onRefresh={refreshRooms} onCreate={createRoom} onJoin={join} />
         ) : state.status === "waiting" ? (
           <MatchmakingScreen
             state={state}
             meId={auth.user.id}
-            roomName={selectedRoomSummary?.name || "匹配房間"}
-            minPlayers={selectedRoomSummary?.minPlayers || content.gameConfig?.room.minPlayers || 4}
+            roomName={roomName}
+            minPlayers={minPlayers}
             onReady={() => emit("player_ready", { roomId: state.roomId })}
             onStart={() => emit("start_match", { roomId: state.roomId, devMode: true })}
           />
         ) : (
-          <>
-            <TopBar
-              state={state}
-              me={me}
-              privateState={privateState}
-              onReady={() => emit("player_ready", { roomId: state.roomId })}
-              onStart={() => emit("start_match", { roomId: state.roomId, devMode: true })}
-              gameConfig={content.gameConfig}
-            />
-            <div className="gameGrid">
+          <div className="pageStack">
+            {showTopBar && (
+              <TopBar
+                state={state}
+                me={me}
+                privateState={privateState}
+                onReady={() => emit("player_ready", { roomId: state.roomId })}
+                onStart={() => emit("start_match", { roomId: state.roomId, devMode: true })}
+                gameConfig={content.gameConfig}
+              />
+            )}
+            {page === "tasks" ? (
+              <ActionPanel state={state} meId={auth.user.id} content={content} privateState={privateState} isBoss={isBoss} auth={auth} emit={emit} />
+            ) : page === "chat" ? (
+              <ChatPanel state={state} emit={emit} />
+            ) : (
+              <div className="mapPage">
               <GameCanvas
                 state={state}
                 meId={auth.user.id}
@@ -212,11 +250,9 @@ function App() {
                 onInteract={(taskId) => emit("start_task", { roomId: state.roomId, taskId })}
                 onToggleDoor={(doorId) => emit("toggle_door", { roomId: state.roomId, doorId })}
               />
-              <ActionPanel state={state} meId={auth.user.id} content={content} privateState={privateState} isBoss={isBoss} auth={auth} emit={emit} />
-              <ChatPanel state={state} emit={emit} />
-            </div>
-            {(auth.user.isAdmin || import.meta.env.DEV) && <AdminPanel auth={auth} />}
-          </>
+              </div>
+            )}
+          </div>
         )}
       </section>
     </main>
@@ -284,7 +320,6 @@ function MatchmakingScreen({ state, meId, roomName, minPlayers, onReady, onStart
 
 function ShopPanel({ auth, onAuth }: { auth: AuthState; onAuth: (auth: AuthState) => void }) {
   const [items, setItems] = useState<Array<ShopItem | CharacterSkin>>([]);
-  const [open, setOpen] = useState(false);
   const [status, setStatus] = useState("");
 
   const loadShop = useCallback(async () => {
@@ -314,50 +349,38 @@ function ShopPanel({ auth, onAuth }: { auth: AuthState; onAuth: (auth: AuthState
   }
 
   return (
-    <>
-      <section className="shopPanel">
+    <section className="shopPage">
+      <header>
         <div>
           <h2>商店</h2>
-          <span>金幣 {auth.user.coins}</span>
+          <span>目前金幣 {auth.user.coins}</span>
         </div>
-        <button className="primaryButton" onClick={() => setOpen(true)}><ShoppingBag size={16} /> 打開商店</button>
-        {status && <span className="shopStatus">{status}</span>}
-      </section>
-      {open && (
-        <div className="modalBackdrop" role="dialog" aria-modal="true" aria-label="商店">
-          <section className="shopModal">
-            <header>
+        <button className="ghostButton" onClick={loadShop}><ShoppingBag size={16} /> 更新商品</button>
+      </header>
+      <div className="shopCatalog">
+        {items.map((item) => {
+          const itemType = "imageUrl" in item ? "人物外觀" : "道具";
+          const canBuy = auth.user.coins >= item.price;
+          return (
+            <article className="shopCard" key={item.id}>
               <div>
-                <h2>商店</h2>
-                <span>目前金幣 {auth.user.coins}</span>
+                <strong>{item.name}</strong>
+                <span>{itemType}</span>
               </div>
-              <button className="ghostButton" onClick={() => setOpen(false)}>關閉</button>
-            </header>
-            <div className="shopCatalog">
-              {items.map((item) => {
-                const itemType = "imageUrl" in item ? "人物外觀" : "道具";
-                const canBuy = auth.user.coins >= item.price;
-                return (
-                  <article className="shopCard" key={item.id}>
-                    <div>
-                      <strong>{item.name}</strong>
-                      <span>{itemType}</span>
-                    </div>
-                    <p>{item.description}</p>
-                    <footer>
-                      <b>{item.price} 金幣</b>
-                      <button className={canBuy ? "primaryButton" : "ghostButton"} disabled={!canBuy} onClick={() => buy(item.id)}>
-                        {canBuy ? "購買" : "金幣不足"}
-                      </button>
-                    </footer>
-                  </article>
-                );
-              })}
-            </div>
-          </section>
-        </div>
-      )}
-    </>
+              <p>{item.description}</p>
+              <footer>
+                <b>{item.price} 金幣</b>
+                <button className={canBuy ? "primaryButton" : "ghostButton"} disabled={!canBuy} onClick={() => buy(item.id)}>
+                  {canBuy ? "購買" : "金幣不足"}
+                </button>
+              </footer>
+            </article>
+          );
+        })}
+      </div>
+      {!items.length && <p className="muted">目前沒有可購買商品。</p>}
+        {status && <span className="shopStatus">{status}</span>}
+    </section>
   );
 }
 
