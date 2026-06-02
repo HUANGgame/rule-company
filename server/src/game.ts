@@ -12,6 +12,9 @@ import { employeeRoles, rules, sabotages, shopItems, spiritualEvents, tasks } fr
 
 interface RoomRuntime {
   name: string;
+  createdAt: number;
+  botsAdded: boolean;
+  nextBotActionAt: number;
   state: GameState;
   privateByPlayer: Map<string, PrivatePlayerState>;
   socketsByPlayer: Map<string, string>;
@@ -20,11 +23,27 @@ interface RoomRuntime {
 const rooms = new Map<string, RoomRuntime>();
 
 const phaseOrder: GamePhase[] = ["preparation", "work", "meeting", "event", "final_work", "escape", "ended"];
+const botJoinDelayMs = 25_000;
+const botActionIntervalMs = 2_500;
+const botNames = ["實習員小林", "稽核機器人", "夜班支援員", "資料助理"];
+const taskTargets: Record<string, { x: number; y: number }> = {
+  Reception: { x: 360, y: 360 },
+  Archive: { x: 180, y: 130 },
+  Accounting: { x: 790, y: 420 },
+  "Meeting Room": { x: 450, y: 140 },
+  "Server Room": { x: 170, y: 410 },
+  "Break Room": { x: 790, y: 300 },
+  "Executive Office": { x: 790, y: 140 },
+  "Exit Gate": { x: 490, y: 520 }
+};
 
 export function createRoom(name: string, owner: { id: string; name: string }) {
   const id = `room-${Math.random().toString(36).slice(2, 8)}`;
   const room: RoomRuntime = {
     name,
+    createdAt: Date.now(),
+    botsAdded: false,
+    nextBotActionAt: 0,
     state: {
       roomId: id,
       status: "waiting",
@@ -164,8 +183,12 @@ export function setPhase(room: RoomRuntime, phase: GamePhase) {
 
 export function tickRooms() {
   for (const room of rooms.values()) {
-    if (room.state.status !== "playing") continue;
     const now = Date.now();
+    if (room.state.status === "waiting") {
+      maybeAddBots(room, now);
+      continue;
+    }
+    if (room.state.status !== "playing") continue;
     room.state.activeTasks = room.state.activeTasks.filter((task) => {
       if (task.endsAt > now) return true;
       const player = room.state.players.find((entry) => entry.id === task.playerId);
@@ -190,6 +213,8 @@ export function tickRooms() {
     if (room.state.phaseEndsAt && room.state.phaseEndsAt <= now) {
       advancePhase(room);
     }
+
+    runBotActions(room, now);
   }
 }
 
@@ -352,6 +377,103 @@ export function rechargeBossEnergy() {
       }
     }
   }
+}
+
+function maybeAddBots(room: RoomRuntime, now: number) {
+  if (room.botsAdded || now - room.createdAt < botJoinDelayMs) return;
+  const config = getGameConfig();
+  const openSlots = Math.max(0, config.room.maxPlayers - room.state.players.length);
+  const botCount = Math.min(2, openSlots);
+  if (!botCount) return;
+
+  for (let index = 0; index < botCount; index += 1) {
+    const botIndex = room.state.players.filter((player) => player.isBot).length;
+    const name = botNames[botIndex % botNames.length];
+    const player: PlayerPublic = {
+      id: `bot-${room.state.roomId}-${botIndex + 1}`,
+      name,
+      hearts: config.player.hearts,
+      alive: true,
+      score: 0,
+      x: config.player.startX + room.state.players.length * config.player.startSpacing,
+      y: config.player.startY,
+      currentArea: "Reception",
+      ready: true,
+      isBot: true
+    };
+    room.state.players.push(player);
+    room.state.logs.unshift(`${name} 加入匹配並已準備`);
+  }
+  room.botsAdded = true;
+}
+
+function runBotActions(room: RoomRuntime, now: number) {
+  if (now < room.nextBotActionAt) return;
+  room.nextBotActionAt = now + botActionIntervalMs;
+
+  for (const bot of room.state.players.filter((player) => player.isBot && player.alive)) {
+    const privateState = room.privateByPlayer.get(bot.id);
+    if (privateState?.bossState) {
+      runBossBot(room, bot);
+    } else {
+      runEmployeeBot(room, bot);
+    }
+  }
+}
+
+function runEmployeeBot(room: RoomRuntime, bot: PlayerPublic) {
+  if (room.state.activeTasks.some((entry) => entry.playerId === bot.id)) return;
+  const task = chooseBotTask(room, bot);
+  const target = taskTargets[task.area] || taskTargets.Reception;
+  moveBotToward(bot, target.x, target.y);
+  bot.currentArea = areaFor(bot.x, bot.y);
+  if (bot.currentArea === task.area || distance(bot.x, bot.y, target.x, target.y) < 28) {
+    bot.x = target.x;
+    bot.y = target.y;
+    bot.currentArea = task.area;
+    try {
+      startTask(room.state.roomId, bot.id, task.id);
+    } catch {
+      // Bot AI is opportunistic; if a task cannot start this tick it will retry later.
+    }
+  }
+}
+
+function runBossBot(room: RoomRuntime, bot: PlayerPublic) {
+  const privateState = room.privateByPlayer.get(bot.id);
+  const bossState = privateState?.bossState;
+  if (!bossState) return;
+  const available = sabotages.filter((sabotage) => {
+    const ready = (bossState.cooldowns[sabotage.id] || 0) <= Date.now();
+    return ready && bossState.sabotageEnergy >= sabotage.energyCost;
+  });
+  const sabotage = available[0];
+  if (!sabotage) return;
+  const target = room.state.players.find((player) => !player.isBot && player.id !== bot.id && player.alive) || room.state.players.find((player) => player.id !== bot.id && player.alive);
+  try {
+    useSabotage(room.state.roomId, bot.id, sabotage.id, target?.id, target?.currentArea || bot.currentArea);
+  } catch {
+    // Cooldowns and energy can change between selection and use.
+  }
+}
+
+function chooseBotTask(room: RoomRuntime, bot: PlayerPublic) {
+  const completedOffset = bot.score % tasks.length;
+  return tasks[(room.state.players.indexOf(bot) + completedOffset) % tasks.length] || tasks[0];
+}
+
+function moveBotToward(player: PlayerPublic, targetX: number, targetY: number) {
+  const config = getGameConfig();
+  const dx = targetX - player.x;
+  const dy = targetY - player.y;
+  const length = Math.max(1, Math.hypot(dx, dy));
+  const step = config.player.moveSpeed;
+  player.x = clamp(player.x + (dx / length) * step, 30, 930);
+  player.y = clamp(player.y + (dy / length) * step, 40, 560);
+}
+
+function distance(x1: number, y1: number, x2: number, y2: number) {
+  return Math.hypot(x2 - x1, y2 - y1);
 }
 
 function triggerSpiritualEvent(room: RoomRuntime) {

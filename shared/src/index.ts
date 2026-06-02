@@ -23,6 +23,7 @@ export interface PlayerPublic {
   y: number;
   currentArea: string;
   ready: boolean;
+  isBot?: boolean;
 }
 
 export interface PrivatePlayerState {

@@ -261,7 +261,7 @@ function MatchmakingScreen({ state, meId, roomName, minPlayers, onReady, onStart
         {state.players.map((player) => (
           <article key={player.id} className={player.id === meId ? "matchPlayer self" : "matchPlayer"}>
             <strong>{player.name}</strong>
-            <span>{player.ready ? "已準備" : "等待中"}</span>
+            <span>{player.isBot ? "機器人 · " : ""}{player.ready ? "已準備" : "等待中"}</span>
           </article>
         ))}
       </div>
@@ -743,7 +743,7 @@ function GameCanvas({ state, meId, onMove }: { state: GameState; meId: string; o
       }
       ctx.fillStyle = "#f7f2e8";
       ctx.font = "12px system-ui";
-      ctx.fillText(player.name, player.x - 22, player.y - 18);
+      ctx.fillText(player.isBot ? `${player.name} AI` : player.name, player.x - 22, player.y - 18);
     });
   }, [state, meId]);
 
