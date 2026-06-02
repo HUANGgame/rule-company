@@ -279,7 +279,7 @@ export function toggleDoor(roomId: string, playerId: string, doorId: string) {
   const player = mustPlayer(room, playerId);
   const door = room.state.doors.find((entry) => entry.id === doorId);
   if (!door) throw new Error("Door not found");
-  if (distance(player.x, player.y, door.x + door.width / 2, door.y + door.height / 2) > 90) throw new Error("請靠近門再互動");
+  if (distance(player.x, player.y, door.x + door.width / 2, door.y + door.height / 2) > 125) throw new Error("請靠近門再互動");
   door.open = !door.open;
   room.state.logs.unshift(`${player.name} ${door.open ? "打開" : "關閉"} ${door.name}`);
   return room.state;

@@ -722,7 +722,7 @@ function GameCanvas({ state, meId, tasks, onMove, onInteract, onToggleDoor }: { 
     if (!me) return undefined;
     return state.doors
       .map((door) => ({ door, distance: Math.hypot(me.x - (door.x + door.width / 2), me.y - (door.y + door.height / 2)) }))
-      .filter((entry) => entry.distance <= 90)
+      .filter((entry) => entry.distance <= 125)
       .sort((a, b) => a.distance - b.distance)[0]?.door;
   }, [me, state.doors]);
 
