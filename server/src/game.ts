@@ -156,6 +156,7 @@ export function startMatch(roomId: string, devMode = false) {
   const config = getGameConfig();
   const minPlayers = devMode ? config.room.devMinPlayers : room.botsAdded ? Math.min(config.room.minPlayers, room.state.players.length) : config.room.minPlayers;
   if (room.state.players.length < minPlayers) throw new Error(`至少需要 ${minPlayers} 人開始`);
+  if (!devMode && room.state.players.some((player) => !player.isBot && !player.ready)) throw new Error("所有真人玩家都要先準備");
   if (room.state.status === "playing") return room.state;
 
   const boss = pick(room.state.players);

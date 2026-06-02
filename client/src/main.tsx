@@ -299,6 +299,9 @@ function MainLobbyScreen({ roomCode, onRoomCode, onCreate, onJoin }: { roomCode:
 function MatchmakingScreen({ state, meId, roomName, roomCode, minPlayers, onReady, onStart }: { state: GameState; meId: string; roomName: string; roomCode?: string; minPlayers: number; onReady: () => void; onStart: () => void }) {
   const me = state.players.find((player) => player.id === meId);
   const readyCount = state.players.filter((player) => player.ready).length;
+  const effectiveMinPlayers = state.players.some((player) => player.isBot) ? Math.min(minPlayers, state.players.length) : minPlayers;
+  const allHumanReady = state.players.filter((player) => !player.isBot).every((player) => player.ready);
+  const canStart = state.players.length >= effectiveMinPlayers && allHumanReady;
   return (
     <div className="matchmakingScreen">
       <header>
@@ -310,19 +313,19 @@ function MatchmakingScreen({ state, meId, roomName, roomCode, minPlayers, onRead
       <div className="matchStats">
         <div><strong>{state.players.length}</strong><span>目前人數</span></div>
         <div><strong>{readyCount}</strong><span>已準備</span></div>
-        <div><strong>{minPlayers}</strong><span>建議人數</span></div>
+        <div><strong>{effectiveMinPlayers}</strong><span>開始門檻</span></div>
       </div>
       <div className="matchPlayers">
         {state.players.map((player) => (
           <article key={player.id} className={player.id === meId ? "matchPlayer self" : "matchPlayer"}>
             <strong>{player.name}</strong>
-            <span>{player.isBot ? "機器人 · " : ""}{player.ready ? "已準備" : "等待中"}</span>
+            <span>{player.isBot ? "自動補位 · " : ""}{player.ready ? "已準備" : "等待中"}</span>
           </article>
         ))}
       </div>
       <div className="matchActions">
         <button className="ghostButton" onClick={onReady}><ShieldAlert size={17} /> {me?.ready ? "取消準備" : "準備"}</button>
-        <button className="primaryButton" onClick={onStart}><Play size={17} /> 開始遊戲</button>
+        <button className="primaryButton" disabled={!canStart} onClick={onStart}><Play size={17} /> 開始遊戲</button>
       </div>
     </div>
   );
