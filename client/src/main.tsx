@@ -200,6 +200,7 @@ function App() {
               privateState={privateState}
               onReady={() => emit("player_ready", { roomId: state.roomId })}
               onStart={() => emit("start_match", { roomId: state.roomId, devMode: true })}
+              gameConfig={content.gameConfig}
             />
             <div className="gameGrid">
               <GameCanvas
@@ -659,14 +660,30 @@ function AuthPanel({ onAuth }: { onAuth: (auth: AuthState) => void }) {
   );
 }
 
-function TopBar({ state, me, privateState, onReady, onStart }: { state: GameState; me?: any; privateState: PrivatePlayerState | null; onReady: () => void; onStart: () => void }) {
-  const remaining = state.phaseEndsAt ? Math.max(0, Math.ceil((state.phaseEndsAt - Date.now()) / 1000)) : 0;
+function TopBar({ state, me, privateState, onReady, onStart, gameConfig }: { state: GameState; me?: any; privateState: PrivatePlayerState | null; onReady: () => void; onStart: () => void; gameConfig?: GameConfig }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 250);
+    return () => window.clearInterval(id);
+  }, []);
+  const remaining = state.phaseEndsAt ? Math.max(0, Math.ceil((state.phaseEndsAt - now) / 1000)) : 0;
+  const phaseSeconds = gameConfig?.phases[state.phase] ?? defaultPhaseSeconds[state.phase] ?? 60;
+  const clockProgress = Math.max(0, Math.min(1, remaining / Math.max(1, phaseSeconds)));
+  const clockAngle = Math.round(clockProgress * 360);
+  const isUrgent = remaining > 0 && remaining <= 10;
   const phaseName = phaseLabel(state.phase);
   return (
     <header className="topBar">
       <div>
         <strong>{phaseName}</strong>
         <span>{state.status} · {remaining}s · 工作進度 {state.workProgress}%</span>
+      </div>
+      <div className={isUrgent ? "countdownClock urgent" : "countdownClock"} aria-label={`倒數 ${remaining} 秒`}>
+        <div className="clockFace" style={{ background: `conic-gradient(#f0c96a 0deg ${clockAngle}deg, #3b3932 ${clockAngle}deg 360deg)` }}>
+          <span className="clockHand" />
+          <strong>{remaining}</strong>
+          <small>秒</small>
+        </div>
       </div>
       <div className="privateRule">
         <Eye size={16} />
@@ -1004,6 +1021,16 @@ function phaseLabel(phase: GameState["phase"]) {
   };
   return labels[phase];
 }
+
+const defaultPhaseSeconds: Record<GameState["phase"], number> = {
+  preparation: 25,
+  work: 180,
+  meeting: 60,
+  event: 30,
+  final_work: 150,
+  escape: 60,
+  ended: 0
+};
 
 const rootElement = document.getElementById("root")!;
 const hotData = import.meta.hot?.data as { root?: Root } | undefined;

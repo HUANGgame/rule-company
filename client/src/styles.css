@@ -395,7 +395,7 @@ button {
 
 .topBar {
   display: grid;
-  grid-template-columns: 180px minmax(240px, 1fr) auto auto;
+  grid-template-columns: 180px auto minmax(240px, 1fr) auto auto;
   gap: 12px;
   align-items: center;
   min-height: 62px;
@@ -406,6 +406,65 @@ button {
 .topBar > div {
   display: grid;
   gap: 4px;
+}
+
+.countdownClock {
+  display: grid;
+  place-items: center;
+}
+
+.clockFace {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px #5a5142, 0 10px 26px rgba(0, 0, 0, .32);
+}
+
+.clockFace::before {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border-radius: 50%;
+  background: #191815;
+}
+
+.clockFace strong,
+.clockFace small,
+.clockHand {
+  position: relative;
+  z-index: 1;
+}
+
+.clockFace strong {
+  color: #f7f2e8;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.clockFace small {
+  margin-top: 28px;
+  color: #aaa493;
+  font-size: 11px;
+  position: absolute;
+}
+
+.clockHand {
+  position: absolute;
+  top: 11px;
+  left: calc(50% - 1px);
+  width: 2px;
+  height: 26px;
+  border-radius: 999px;
+  background: #ffcf75;
+  transform-origin: 1px 27px;
+  animation: clockHandSpin 1s linear infinite;
+}
+
+.countdownClock.urgent .clockFace {
+  animation: urgentClockPulse .75s ease-in-out infinite alternate;
 }
 
 .privateRule {
@@ -840,6 +899,28 @@ textarea {
   background: #3a2d1c;
 }
 
+@keyframes clockHandSpin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes urgentClockPulse {
+  from {
+    box-shadow: 0 0 0 1px #5a5142, 0 10px 26px rgba(0, 0, 0, .32);
+    filter: saturate(1);
+  }
+
+  to {
+    box-shadow: 0 0 0 2px #ffb1a8, 0 0 28px rgba(255, 107, 89, .45);
+    filter: saturate(1.45);
+  }
+}
+
 @media (max-width: 1180px) {
   .appShell {
     grid-template-columns: 1fr;
@@ -859,7 +940,11 @@ textarea {
   }
 
   .topBar {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr auto;
+  }
+
+  .privateRule {
+    grid-column: 1 / -1;
   }
 }
 
@@ -871,6 +956,14 @@ textarea {
 
   .canvasWrap {
     min-height: 250px;
+  }
+
+  .topBar {
+    grid-template-columns: 1fr;
+  }
+
+  .countdownClock {
+    justify-content: start;
   }
 
   .interactButton {
