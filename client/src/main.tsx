@@ -76,12 +76,13 @@ function App() {
   const [privateState, setPrivateState] = useState<PrivatePlayerState | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
   const [selectedRoom, setSelectedRoom] = useState("");
+  const [joinCode, setJoinCode] = useState("");
   const [page, setPage] = useState<AppPage>("lobby");
   const [notice, setNotice] = useState("連線準備中");
 
   const me = state?.players.find((player) => player.id === auth?.user.id);
   const isBoss = privateState?.faction === "boss";
-  const selectedRoomSummary = rooms.find((room) => room.id === selectedRoom);
+  const selectedRoomSummary = rooms.find((room) => room.id === selectedRoom || room.code === selectedRoom);
   const canOpenAdmin = !!auth && (auth.user.isAdmin || import.meta.env.DEV);
 
   useEffect(() => {
@@ -89,7 +90,6 @@ function App() {
       .then((res) => res.json())
       .then(setContent)
       .catch(() => setNotice("內容載入失敗"));
-    refreshRooms();
   }, []);
 
   useEffect(() => {
@@ -129,8 +129,8 @@ function App() {
       body: JSON.stringify({ name: "夜班辦公室" })
     });
     const data = await res.json();
-    setSelectedRoom(data.state.roomId);
-    await refreshRooms();
+    setSelectedRoom(data.state.roomCode || data.state.roomId);
+    setJoinCode(data.state.roomCode || "");
     join(data.state.roomId);
   }
 
@@ -157,7 +157,8 @@ function App() {
       }
       setState(reply.state);
       setPrivateState(reply.privateState);
-      setSelectedRoom(roomId);
+      setSelectedRoom(reply.state?.roomCode || reply.state?.roomId || roomId);
+      setJoinCode(reply.state?.roomCode || "");
       setNotice("已進入房間");
     });
   }
@@ -178,7 +179,8 @@ function App() {
     { page: "shop", label: "商店", icon: <ShoppingBag size={17} />, show: true },
     { page: "admin", label: "後台", icon: <ShieldAlert size={17} />, show: canOpenAdmin }
   ];
-  const roomName = selectedRoomSummary?.name || "匹配房間";
+  const roomCode = state?.roomCode || selectedRoom;
+  const roomName = state?.roomCode ? `房間 ${state.roomCode}` : selectedRoomSummary?.name || "匹配房間";
   const minPlayers = selectedRoomSummary?.minPlayers || content.gameConfig?.room.minPlayers || 4;
   const showTopBar = !!state && state.status !== "waiting" && (page === "map" || page === "tasks" || page === "chat");
 
@@ -203,7 +205,7 @@ function App() {
         </nav>
         <div className="sidebarActions">
           <button className="primaryButton" onClick={() => { setPage("lobby"); createRoom(); }}><DoorOpen size={17} /> 建立房間</button>
-          <button className="ghostButton" onClick={() => { setPage("lobby"); refreshRooms(); }}><RadioTower size={17} /> 更新房間</button>
+          <button className="ghostButton" onClick={() => { setPage("lobby"); join(joinCode); }} disabled={!joinCode.trim()}><RadioTower size={17} /> 加入房間</button>
         </div>
         <div className="notice">{notice}</div>
       </aside>
@@ -214,12 +216,13 @@ function App() {
         ) : page === "admin" && canOpenAdmin ? (
           <AdminPanel auth={auth} />
         ) : page === "lobby" || !state ? (
-          <MainLobbyScreen rooms={rooms} onRefresh={refreshRooms} onCreate={createRoom} onJoin={join} />
+          <MainLobbyScreen roomCode={joinCode} onRoomCode={setJoinCode} onCreate={createRoom} onJoin={() => join(joinCode)} />
         ) : state.status === "waiting" ? (
           <MatchmakingScreen
             state={state}
             meId={auth.user.id}
             roomName={roomName}
+            roomCode={roomCode}
             minPlayers={minPlayers}
             onReady={() => emit("player_ready", { roomId: state.roomId })}
             onStart={() => emit("start_match", { roomId: state.roomId, devMode: true })}
@@ -259,35 +262,37 @@ function App() {
   );
 }
 
-function MainLobbyScreen({ rooms, onRefresh, onCreate, onJoin }: { rooms: RoomSummary[]; onRefresh: () => void; onCreate: () => void; onJoin: (roomId: string) => void }) {
+function MainLobbyScreen({ roomCode, onRoomCode, onCreate, onJoin }: { roomCode: string; onRoomCode: (value: string) => void; onCreate: () => void; onJoin: () => void }) {
   return (
     <div className="lobbyScreen">
       <header>
         <div>
           <span>MAIN LOBBY</span>
           <h2>主大廳</h2>
-          <p>先建立房間或加入等待中的房間。進房後會進入匹配畫面，遊戲開始後才會切到公司地圖。</p>
+          <p>建立房間後會得到 6 位數代號。只有知道代號的人才能加入同一間房，不會顯示其他匹配房間。</p>
         </div>
         <div className="lobbyActions">
           <button className="primaryButton" onClick={onCreate}><DoorOpen size={17} /> 建立房間</button>
-          <button className="ghostButton" onClick={onRefresh}><RadioTower size={17} /> 更新房間</button>
         </div>
       </header>
-      <div className="lobbyRoomGrid">
-        {rooms.map((room) => (
-          <button key={room.id} className="lobbyRoomCard" onClick={() => onJoin(room.id)}>
-            <strong>{room.name}</strong>
-            <span>{room.status === "waiting" ? "等待匹配" : room.status === "playing" ? "遊戲中" : "已結束"}</span>
-            <b>{room.playerCount}/{room.maxPlayers}</b>
-          </button>
-        ))}
-        {!rooms.length && <p className="muted">目前沒有房間，可以先建立一間。</p>}
-      </div>
+      <form className="joinCodePanel" onSubmit={(event) => { event.preventDefault(); onJoin(); }}>
+        <label>
+          <span>房間代號</span>
+          <input
+            value={roomCode}
+            onChange={(event) => onRoomCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+            inputMode="numeric"
+            placeholder="輸入 6 位數代號"
+            maxLength={6}
+          />
+        </label>
+        <button className="primaryButton" disabled={roomCode.trim().length < 6}><RadioTower size={17} /> 加入房間</button>
+      </form>
     </div>
   );
 }
 
-function MatchmakingScreen({ state, meId, roomName, minPlayers, onReady, onStart }: { state: GameState; meId: string; roomName: string; minPlayers: number; onReady: () => void; onStart: () => void }) {
+function MatchmakingScreen({ state, meId, roomName, roomCode, minPlayers, onReady, onStart }: { state: GameState; meId: string; roomName: string; roomCode?: string; minPlayers: number; onReady: () => void; onStart: () => void }) {
   const me = state.players.find((player) => player.id === meId);
   const readyCount = state.players.filter((player) => player.ready).length;
   return (
@@ -295,6 +300,7 @@ function MatchmakingScreen({ state, meId, roomName, minPlayers, onReady, onStart
       <header>
         <span>MATCHMAKING</span>
         <h2><Users size={22} /> {roomName}</h2>
+        {roomCode && <strong className="roomCodeBadge">代號 {roomCode}</strong>}
         <p>等待玩家加入並準備。遊戲開始後，才會進入正式公司地圖、任務與背包畫面。</p>
       </header>
       <div className="matchStats">

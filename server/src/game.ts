@@ -13,6 +13,7 @@ import { employeeRoles, rules, sabotages, shopItems, spiritualEvents, tasks } fr
 
 interface RoomRuntime {
   name: string;
+  code: string;
   createdAt: number;
   botsAdded: boolean;
   nextBotActionAt: number;
@@ -70,14 +71,17 @@ const doorTemplates: DoorState[] = [
 ];
 
 export function createRoom(name: string, owner: { id: string; name: string }) {
-  const id = `room-${Math.random().toString(36).slice(2, 8)}`;
+  const code = createRoomCode();
+  const id = `room-${code}`;
   const room: RoomRuntime = {
     name,
+    code,
     createdAt: Date.now(),
     botsAdded: false,
     nextBotActionAt: 0,
     state: {
       roomId: id,
+      roomCode: code,
       status: "waiting",
       phase: "preparation",
       workProgress: 0,
@@ -102,6 +106,7 @@ export function listRooms(): RoomSummary[] {
   const config = getGameConfig();
   return [...rooms.values()].map((room) => ({
     id: room.state.roomId,
+    code: room.code,
     name: room.name,
     status: room.state.status,
     playerCount: room.state.players.length,
@@ -111,11 +116,11 @@ export function listRooms(): RoomSummary[] {
 }
 
 export function getRoom(roomId: string) {
-  return rooms.get(roomId);
+  return rooms.get(resolveRoomId(roomId));
 }
 
 export function joinRoom(roomId: string, user: { id: string; name: string }, socketId?: string) {
-  const room = rooms.get(roomId);
+  const room = rooms.get(resolveRoomId(roomId));
   if (!room) throw new Error("Room not found");
   let player = room.state.players.find((entry) => entry.id === user.id);
   if (!player) {
@@ -538,9 +543,26 @@ function triggerSpiritualEvent(room: RoomRuntime) {
 }
 
 function mustRoom(roomId: string) {
-  const room = rooms.get(roomId);
+  const room = rooms.get(resolveRoomId(roomId));
   if (!room) throw new Error("Room not found");
   return room;
+}
+
+function resolveRoomId(input: string) {
+  const value = String(input || "").trim().toUpperCase();
+  if (!value) return "";
+  if (rooms.has(value)) return value;
+  const code = value.replace(/^ROOM-/, "");
+  const roomId = `room-${code}`;
+  return rooms.has(roomId) ? roomId : value;
+}
+
+function createRoomCode() {
+  for (let index = 0; index < 20; index += 1) {
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    if (!rooms.has(`room-${code}`)) return code;
+  }
+  return String(Date.now()).slice(-6);
 }
 
 function mustPlayer(room: RoomRuntime, playerId: string) {

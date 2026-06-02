@@ -119,6 +119,7 @@ export interface ActiveTask {
 
 export interface GameState {
   roomId: string;
+  roomCode?: string;
   matchId?: string;
   status: RoomStatus;
   phase: GamePhase;
@@ -158,6 +159,7 @@ export interface ActiveSabotage {
 
 export interface RoomSummary {
   id: string;
+  code?: string;
   name: string;
   status: RoomStatus;
   playerCount: number;

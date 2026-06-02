@@ -389,6 +389,43 @@ button {
   gap: 12px;
 }
 
+.joinCodePanel {
+  display: grid;
+  gap: 12px;
+  width: min(460px, 100%);
+  padding: 18px;
+  border: 1px solid #4b463c;
+  background: #211f1b;
+}
+
+.joinCodePanel label {
+  display: grid;
+  gap: 8px;
+}
+
+.joinCodePanel label span {
+  color: #f0c96a;
+  font-size: 13px;
+}
+
+.joinCodePanel input {
+  height: 48px;
+  font-size: 22px;
+  letter-spacing: 0;
+  text-align: center;
+}
+
+.roomCodeBadge {
+  display: inline-flex;
+  align-items: center;
+  width: max-content;
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid #b88947;
+  color: #f0c96a;
+  background: #2b2317;
+}
+
 .lobbyRoomCard,
 .matchPlayer {
   display: grid;

@@ -293,9 +293,9 @@ io.on("connection", (socket) => {
   socket.on("join_room", ({ roomId }, reply) => {
     try {
       const room = joinRoom(roomId, user, socket.id);
-      socket.join(roomId);
-      emitRoom(roomId);
-      reply?.({ ok: true, state: room.state, privateState: getPrivate(roomId, user.id) });
+      socket.join(room.state.roomId);
+      emitRoom(room.state.roomId);
+      reply?.({ ok: true, state: room.state, privateState: getPrivate(room.state.roomId, user.id) });
     } catch (error) {
       reply?.({ ok: false, error: message(error) });
     }
