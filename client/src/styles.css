@@ -526,6 +526,31 @@ canvas {
   font-size: 13px;
 }
 
+.viewControls {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  width: 190px;
+}
+
+.viewControls button {
+  min-width: 34px;
+  min-height: 32px;
+  border: 1px solid #595448;
+  border-radius: 3px;
+  color: #f7f2e8;
+  background: rgba(22, 21, 18, .88);
+}
+
+.viewControls button:hover {
+  border-color: #d6a04f;
+  background: rgba(56, 43, 24, .95);
+}
+
 .interactButton {
   position: absolute;
   left: 50%;
@@ -979,6 +1004,12 @@ textarea {
 
   .mobileJoystick {
     display: block;
+  }
+
+  .viewControls {
+    top: 12px;
+    bottom: auto;
+    width: 170px;
   }
 
   .locationBadge {

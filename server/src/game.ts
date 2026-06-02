@@ -1,6 +1,7 @@
 import type {
   ActiveSabotage,
   ChatMessage,
+  DoorState,
   GamePhase,
   GameState,
   PlayerPublic,
@@ -23,19 +24,50 @@ interface RoomRuntime {
 const rooms = new Map<string, RoomRuntime>();
 
 const phaseOrder: GamePhase[] = ["preparation", "work", "meeting", "event", "final_work", "escape", "ended"];
+const world = { width: 1400, height: 900 };
+const playerRadius = 10;
 const botJoinDelayMs = 25_000;
 const botActionIntervalMs = 2_500;
 const botNames = ["實習員小林", "稽核機器人", "夜班支援員", "資料助理"];
 const taskTargets: Record<string, { x: number; y: number }> = {
-  Reception: { x: 360, y: 360 },
-  Archive: { x: 180, y: 130 },
-  Accounting: { x: 790, y: 420 },
-  "Meeting Room": { x: 450, y: 140 },
-  "Server Room": { x: 170, y: 410 },
-  "Break Room": { x: 790, y: 300 },
-  "Executive Office": { x: 790, y: 140 },
-  "Exit Gate": { x: 490, y: 520 }
+  Reception: { x: 540, y: 545 },
+  Archive: { x: 215, y: 175 },
+  Accounting: { x: 1130, y: 650 },
+  "Meeting Room": { x: 600, y: 180 },
+  "Server Room": { x: 250, y: 660 },
+  "Break Room": { x: 1130, y: 455 },
+  "Executive Office": { x: 1125, y: 180 },
+  "Exit Gate": { x: 700, y: 815 }
 };
+
+const roomsLayout = [
+  { area: "Archive", x: 80, y: 70, width: 300, height: 230 },
+  { area: "Meeting Room", x: 430, y: 70, width: 340, height: 230 },
+  { area: "Executive Office", x: 980, y: 70, width: 280, height: 230 },
+  { area: "Server Room", x: 80, y: 560, width: 330, height: 240 },
+  { area: "Reception", x: 440, y: 420, width: 430, height: 260 },
+  { area: "Break Room", x: 980, y: 380, width: 280, height: 180 },
+  { area: "Accounting", x: 980, y: 610, width: 280, height: 190 }
+];
+
+const hallways = [
+  { x: 380, y: 300, width: 600, height: 120 },
+  { x: 870, y: 300, width: 110, height: 500 },
+  { x: 410, y: 680, width: 570, height: 120 },
+  { x: 640, y: 300, width: 120, height: 560 },
+  { x: 40, y: 300, width: 340, height: 260 }
+];
+
+const doorTemplates: DoorState[] = [
+  { id: "door-archive", name: "檔案室門", area: "Archive", x: 270, y: 288, width: 70, height: 24, open: true },
+  { id: "door-meeting", name: "會議室門", area: "Meeting Room", x: 555, y: 288, width: 72, height: 24, open: true },
+  { id: "door-boss", name: "主管辦公室門", area: "Executive Office", x: 968, y: 175, width: 24, height: 78, open: true },
+  { id: "door-server", name: "伺服器室門", area: "Server Room", x: 308, y: 548, width: 82, height: 24, open: true },
+  { id: "door-reception", name: "接待大廳門", area: "Reception", x: 622, y: 408, width: 86, height: 24, open: true },
+  { id: "door-break", name: "茶水間門", area: "Break Room", x: 968, y: 450, width: 24, height: 74, open: true },
+  { id: "door-accounting", name: "財務室門", area: "Accounting", x: 968, y: 650, width: 24, height: 76, open: true },
+  { id: "door-exit", name: "出口門", area: "Exit Gate", x: 650, y: 800, width: 120, height: 32, open: true }
+];
 
 export function createRoom(name: string, owner: { id: string; name: string }) {
   const id = `room-${Math.random().toString(36).slice(2, 8)}`;
@@ -54,6 +86,7 @@ export function createRoom(name: string, owner: { id: string; name: string }) {
       activeTasks: [],
       activeEvents: [],
       activeSabotages: [],
+      doors: createDoors(),
       chat: [],
       logs: [`${owner.name} 建立了房間 ${name}`]
     },
@@ -94,8 +127,8 @@ export function joinRoom(roomId: string, user: { id: string; name: string }, soc
       hearts: config.player.hearts,
       alive: true,
       score: 0,
-      x: config.player.startX + room.state.players.length * config.player.startSpacing,
-      y: config.player.startY,
+      x: taskTargets.Reception.x + room.state.players.length * config.player.startSpacing,
+      y: taskTargets.Reception.y,
       currentArea: "Reception",
       ready: false
     };
@@ -132,8 +165,8 @@ export function startMatch(roomId: string, devMode = true) {
     player.hearts = config.player.hearts;
     player.alive = true;
     player.score = 0;
-    player.x = config.player.startX + index * config.player.startSpacing;
-    player.y = config.player.startY;
+    player.x = taskTargets.Reception.x + index * config.player.startSpacing;
+    player.y = taskTargets.Reception.y;
     player.currentArea = "Reception";
     room.privateByPlayer.set(player.id, {
       faction: isBoss ? "boss" : "employee",
@@ -232,9 +265,23 @@ export function movePlayer(roomId: string, playerId: string, dx: number, dy: num
   const slowed = room.state.activeSabotages.some((entry) => entry.targetId === playerId && entry.sabotageId === "trip");
   const config = getGameConfig();
   const speed = slowed ? config.player.slowedMoveSpeed : config.player.moveSpeed;
-  player.x = clamp(player.x + Math.sign(dx) * speed, 30, 930);
-  player.y = clamp(player.y + Math.sign(dy) * speed, 40, 560);
+  const nextX = clamp(player.x + Math.sign(dx) * speed, playerRadius, world.width - playerRadius);
+  const nextY = clamp(player.y + Math.sign(dy) * speed, playerRadius, world.height - playerRadius);
+  if (!canStandAt(room, nextX, nextY)) return room.state;
+  player.x = nextX;
+  player.y = nextY;
   player.currentArea = areaFor(player.x, player.y);
+  return room.state;
+}
+
+export function toggleDoor(roomId: string, playerId: string, doorId: string) {
+  const room = mustRoom(roomId);
+  const player = mustPlayer(room, playerId);
+  const door = room.state.doors.find((entry) => entry.id === doorId);
+  if (!door) throw new Error("Door not found");
+  if (distance(player.x, player.y, door.x + door.width / 2, door.y + door.height / 2) > 90) throw new Error("請靠近門再互動");
+  door.open = !door.open;
+  room.state.logs.unshift(`${player.name} ${door.open ? "打開" : "關閉"} ${door.name}`);
   return room.state;
 }
 
@@ -425,11 +472,13 @@ function runEmployeeBot(room: RoomRuntime, bot: PlayerPublic) {
   if (room.state.activeTasks.some((entry) => entry.playerId === bot.id)) return;
   const task = chooseBotTask(room, bot);
   const target = taskTargets[task.area] || taskTargets.Reception;
-  moveBotToward(bot, target.x, target.y);
+  moveBotToward(room, bot, target.x, target.y);
   bot.currentArea = areaFor(bot.x, bot.y);
   if (bot.currentArea === task.area || distance(bot.x, bot.y, target.x, target.y) < 28) {
-    bot.x = target.x;
-    bot.y = target.y;
+    if (canStandAt(room, target.x, target.y)) {
+      bot.x = target.x;
+      bot.y = target.y;
+    }
     bot.currentArea = task.area;
     try {
       startTask(room.state.roomId, bot.id, task.id);
@@ -464,14 +513,18 @@ function chooseBotTask(room: RoomRuntime, bot: PlayerPublic) {
   return tasks[(room.state.players.indexOf(bot) + completedOffset) % tasks.length] || tasks[0];
 }
 
-function moveBotToward(player: PlayerPublic, targetX: number, targetY: number) {
+function moveBotToward(room: RoomRuntime, player: PlayerPublic, targetX: number, targetY: number) {
   const config = getGameConfig();
   const dx = targetX - player.x;
   const dy = targetY - player.y;
   const length = Math.max(1, Math.hypot(dx, dy));
   const step = config.player.moveSpeed;
-  player.x = clamp(player.x + (dx / length) * step, 30, 930);
-  player.y = clamp(player.y + (dy / length) * step, 40, 560);
+  const nextX = clamp(player.x + (dx / length) * step, playerRadius, world.width - playerRadius);
+  const nextY = clamp(player.y + (dy / length) * step, playerRadius, world.height - playerRadius);
+  if (canStandAt(room, nextX, nextY)) {
+    player.x = nextX;
+    player.y = nextY;
+  }
 }
 
 function distance(x1: number, y1: number, x2: number, y2: number) {
@@ -504,13 +557,42 @@ function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
+function createDoors() {
+  return doorTemplates.map((door) => ({ ...door }));
+}
+
+function canStandAt(room: RoomRuntime, x: number, y: number) {
+  const center = { x, y };
+  if (hallways.some((rect) => containsPoint(rect, center.x, center.y))) return true;
+  if (room.state.doors.some((door) => door.open && rectsOverlap(pointRect(center.x, center.y, playerRadius), door))) return true;
+  return roomsLayout.some((rect) => {
+    if (!containsPoint(rect, center.x, center.y)) return false;
+    const door = room.state.doors.find((entry) => entry.area === rect.area);
+    if (!door || door.open) return true;
+    return !isNearDoor(center.x, center.y, door);
+  });
+}
+
+function containsPoint(rect: { x: number; y: number; width: number; height: number }, x: number, y: number) {
+  return x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height;
+}
+
+function pointRect(x: number, y: number, radius: number) {
+  return { x: x - radius, y: y - radius, width: radius * 2, height: radius * 2 };
+}
+
+function rectsOverlap(a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }) {
+  return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+}
+
+function isNearDoor(x: number, y: number, door: DoorState) {
+  return distance(x, y, door.x + door.width / 2, door.y + door.height / 2) < 34;
+}
+
 function areaFor(x: number, y: number) {
-  if (x >= 430 && x <= 550 && y > 490) return "Exit Gate";
-  if (x > 704 && y > 344) return "Accounting";
-  if (x > 704 && y > 236) return "Break Room";
-  if (x > 704) return "Executive Office";
-  if (x < 285 && y > 330) return "Server Room";
-  if (x < 350 && y < 180) return "Archive";
-  if (x >= 340 && x < 620 && y < 240) return "Meeting Room";
+  if (x >= 650 && x <= 770 && y > 790) return "Exit Gate";
+  for (const room of roomsLayout) {
+    if (containsPoint(room, x, y)) return room.area;
+  }
   return "Reception";
 }

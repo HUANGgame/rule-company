@@ -24,6 +24,7 @@ import {
   startMatch,
   startTask,
   tickRooms,
+  toggleDoor,
   toggleReady,
   useInventoryItem,
   useSabotage
@@ -304,6 +305,7 @@ io.on("connection", (socket) => {
   socket.on("start_match", ({ roomId, devMode }, reply) => safeReply(reply, () => emitAndReturn(roomId, startMatch(roomId, Boolean(devMode)))));
   socket.on("player_move", ({ roomId, dx, dy }, reply) => safeReply(reply, () => emitAndReturn(roomId, movePlayer(roomId, user.id, Number(dx), Number(dy)))));
   socket.on("start_task", ({ roomId, taskId }, reply) => safeReply(reply, () => emitAndReturn(roomId, startTask(roomId, user.id, taskId))));
+  socket.on("toggle_door", ({ roomId, doorId }, reply) => safeReply(reply, () => emitAndReturn(roomId, toggleDoor(roomId, user.id, String(doorId || "")))));
   socket.on("boss_use_sabotage", ({ roomId, sabotageId, targetId, area }, reply) =>
     safeReply(reply, () => emitAndReturn(roomId, useSabotage(roomId, user.id, sabotageId, targetId, area)))
   );

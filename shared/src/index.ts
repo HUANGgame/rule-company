@@ -129,10 +129,22 @@ export interface GameState {
   activeTasks: ActiveTask[];
   activeEvents: SpiritualEvent[];
   activeSabotages: ActiveSabotage[];
+  doors: DoorState[];
   chat: ChatMessage[];
   logs: string[];
   startedAt?: number;
   endedAt?: number;
+}
+
+export interface DoorState {
+  id: string;
+  name: string;
+  area: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  open: boolean;
 }
 
 export interface ActiveSabotage {

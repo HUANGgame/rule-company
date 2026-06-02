@@ -22,6 +22,7 @@ import {
 import type {
   AuthUser,
   CharacterSkin,
+  DoorState,
   EmployeeRole,
   GameConfig,
   GameState,
@@ -209,6 +210,7 @@ function App() {
                 tasks={content.tasks}
                 onMove={(dx, dy) => emit("player_move", { roomId: state.roomId, dx, dy })}
                 onInteract={(taskId) => emit("start_task", { roomId: state.roomId, taskId })}
+                onToggleDoor={(doorId) => emit("toggle_door", { roomId: state.roomId, doorId })}
               />
               <ActionPanel state={state} meId={auth.user.id} content={content} privateState={privateState} isBoss={isBoss} auth={auth} emit={emit} />
               <ChatPanel state={state} emit={emit} />
@@ -695,14 +697,34 @@ function TopBar({ state, me, privateState, onReady, onStart, gameConfig }: { sta
   );
 }
 
-function GameCanvas({ state, meId, tasks, onMove, onInteract }: { state: GameState; meId: string; tasks: TaskDef[]; onMove: (dx: number, dy: number) => void; onInteract: (taskId: string) => void }) {
+const mapWorld = { width: 1400, height: 900 };
+const mapRooms = [
+  { x: 80, y: 70, width: 300, height: 230, color: "#1b2a3a", label: "檔案室" },
+  { x: 430, y: 70, width: 340, height: 230, color: "#25364a", label: "會議室" },
+  { x: 980, y: 70, width: 280, height: 230, color: "#2a2230", label: "主管辦公室" },
+  { x: 80, y: 560, width: 330, height: 240, color: "#2a2f3d", label: "伺服器室" },
+  { x: 440, y: 420, width: 430, height: 260, color: "#20364a", label: "大廳" },
+  { x: 980, y: 380, width: 280, height: 180, color: "#244456", label: "茶水間" },
+  { x: 980, y: 610, width: 280, height: 190, color: "#25201b", label: "財務室" }
+];
+
+function GameCanvas({ state, meId, tasks, onMove, onInteract, onToggleDoor }: { state: GameState; meId: string; tasks: TaskDef[]; onMove: (dx: number, dy: number) => void; onInteract: (taskId: string) => void; onToggleDoor: (doorId: string) => void }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const joystickRef = useRef<HTMLDivElement | null>(null);
   const joystickDirection = useRef<[number, number]>([0, 0]);
   const [joystickKnob, setJoystickKnob] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
   const me = state.players.find((player) => player.id === meId);
   const nearbyTasks = tasks.filter((task) => task.area === me?.currentArea);
   const primaryTask = nearbyTasks[0];
+  const nearestDoor = useMemo(() => {
+    if (!me) return undefined;
+    return state.doors
+      .map((door) => ({ door, distance: Math.hypot(me.x - (door.x + door.width / 2), me.y - (door.y + door.height / 2)) }))
+      .filter((entry) => entry.distance <= 90)
+      .sort((a, b) => a.distance - b.distance)[0]?.door;
+  }, [me, state.doors]);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -713,37 +735,46 @@ function GameCanvas({ state, meId, tasks, onMove, onInteract }: { state: GameSta
 
     ctx.fillStyle = "#0b1018";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const focusX = me?.x || 700;
+    const focusY = me?.y || 520;
+    const cameraX = clampNumber(focusX + pan.x - canvas.width / (2 * zoom), 0, mapWorld.width - canvas.width / zoom);
+    const cameraY = clampNumber(focusY + pan.y - canvas.height / (2 * zoom), 0, mapWorld.height - canvas.height / zoom);
+    ctx.save();
+    ctx.scale(zoom, zoom);
+    ctx.translate(-cameraX, -cameraY);
     ctx.fillStyle = "#151b26";
-    ctx.fillRect(54, 26, 872, 508);
+    ctx.fillRect(35, 35, mapWorld.width - 70, mapWorld.height - 70);
     ctx.fillStyle = "#263342";
-    for (let x = 42; x < 940; x += 14) ctx.fillRect(x, 14, 7, 534);
-    for (let y = 14; y < 552; y += 14) ctx.fillRect(42, y, 898, 7);
+    for (let x = 42; x < mapWorld.width - 40; x += 14) ctx.fillRect(x, 20, 7, mapWorld.height - 40);
+    for (let y = 20; y < mapWorld.height - 20; y += 14) ctx.fillRect(42, y, mapWorld.width - 84, 7);
 
-    room(ctx, 72, 54, 230, 170, "#1b2a3a", "檔案室");
-    room(ctx, 318, 54, 260, 170, "#25364a", "會議室");
-    room(ctx, 704, 54, 178, 170, "#2a2230", "主管辦公室");
-    room(ctx, 72, 330, 230, 144, "#2a2f3d", "伺服器室");
-    room(ctx, 704, 244, 178, 100, "#244456", "茶水間");
-    room(ctx, 704, 360, 178, 114, "#25201b", "財務室");
-    room(ctx, 280, 262, 342, 162, "#20364a", "大廳");
+    mapRooms.forEach((entry) => room(ctx, entry.x, entry.y, entry.width, entry.height, entry.color, entry.label));
     ctx.fillStyle = "#0b0f16";
-    ctx.fillRect(436, 512, 106, 20);
+    ctx.fillRect(650, 800, 120, 34);
     ctx.fillStyle = "#c8bd63";
     ctx.font = "12px monospace";
-    ctx.fillText("出口", 472, 506);
+    ctx.fillText("出口", 690, 792);
+
+    state.doors.forEach((door) => {
+      ctx.fillStyle = door.open ? "#c9a86a" : "#5e392e";
+      ctx.fillRect(door.x, door.y, door.width, door.height);
+      ctx.strokeStyle = door.open ? "#f0d088" : "#a4493a";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(door.x, door.y, door.width, door.height);
+    });
 
     ctx.fillStyle = "#6d2833";
-    ctx.fillRect(418, 322, 38, 28);
-    ctx.fillRect(468, 328, 26, 22);
+    ctx.fillRect(615, 515, 52, 38);
+    ctx.fillRect(690, 522, 36, 30);
     ctx.fillStyle = "#8d6b55";
-    ctx.fillRect(108, 220, 130, 42);
+    ctx.fillRect(140, 305, 155, 48);
     ctx.fillStyle = "#c5b18e";
-    ctx.fillRect(316, 154, 38, 42);
-    ctx.fillRect(482, 154, 38, 42);
+    ctx.fillRect(438, 165, 42, 52);
+    ctx.fillRect(650, 165, 42, 52);
 
     if (state.activeSabotages.some((entry) => entry.sabotageId === "lights-out")) {
       ctx.fillStyle = "rgba(0,0,0,.56)";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillRect(0, 0, mapWorld.width, mapWorld.height);
     }
 
     state.players.forEach((player) => {
@@ -773,7 +804,8 @@ function GameCanvas({ state, meId, tasks, onMove, onInteract }: { state: GameSta
       ctx.font = "12px system-ui";
       ctx.fillText(player.isBot ? `${player.name} AI` : player.name, player.x - 22, player.y - 18);
     });
-  }, [state, meId]);
+    ctx.restore();
+  }, [state, meId, me, pan, zoom]);
 
   useEffect(draw, [draw]);
   useEffect(() => {
@@ -823,7 +855,21 @@ function GameCanvas({ state, meId, tasks, onMove, onInteract }: { state: GameSta
       <canvas ref={canvasRef} width={980} height={590} />
       <div className="locationBadge">{areaLabel(me?.currentArea || "Reception")}</div>
       <div className="movementHint">WASD / 方向鍵移動</div>
-      {primaryTask && (
+      <div className="viewControls">
+        <button type="button" onClick={() => setZoom((value) => Math.min(1.8, value + 0.15))}>+</button>
+        <button type="button" onClick={() => setZoom((value) => Math.max(0.75, value - 0.15))}>-</button>
+        <button type="button" onClick={() => setPan((value) => ({ ...value, y: value.y - 80 }))}>↑</button>
+        <button type="button" onClick={() => setPan((value) => ({ ...value, y: value.y + 80 }))}>↓</button>
+        <button type="button" onClick={() => setPan((value) => ({ ...value, x: value.x - 80 }))}>←</button>
+        <button type="button" onClick={() => setPan((value) => ({ ...value, x: value.x + 80 }))}>→</button>
+        <button type="button" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}>置中</button>
+      </div>
+      {nearestDoor ? (
+        <button className="interactButton" onClick={() => onToggleDoor(nearestDoor.id)}>
+          <ClipboardList size={17} />
+          {nearestDoor.open ? "關門" : "開門"}：{nearestDoor.name}
+        </button>
+      ) : primaryTask && (
         <button className="interactButton" onClick={() => onInteract(primaryTask.id)}>
           <ClipboardList size={17} />
           互動：{primaryTask.name}
@@ -884,6 +930,11 @@ function taskKindLabel(kind: TaskDef["kind"]) {
     sorting: "分類"
   };
   return labels[kind];
+}
+
+function clampNumber(value: number, min: number, max: number) {
+  if (max < min) return min;
+  return Math.max(min, Math.min(max, value));
 }
 
 function ActionPanel({ state, meId, content, privateState, isBoss, auth, emit }: { state: GameState; meId: string; content: Content; privateState: PrivatePlayerState | null; isBoss: boolean; auth: AuthState; emit: <T>(event: string, payload: Record<string, unknown>) => Promise<T> }) {
