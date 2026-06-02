@@ -159,6 +159,7 @@ function App() {
       setPrivateState(reply.privateState);
       setSelectedRoom(reply.state?.roomCode || reply.state?.roomId || roomId);
       setJoinCode(reply.state?.roomCode || "");
+      setPage(reply.state?.status === "waiting" ? "match" : "map");
       setNotice("已進入房間");
     });
   }
