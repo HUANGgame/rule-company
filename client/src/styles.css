@@ -1103,6 +1103,10 @@ textarea {
     height: auto;
   }
 
+  .gameActive .playSurface {
+    height: 100%;
+  }
+
   .gameGrid {
     grid-template-columns: 1fr;
   }
@@ -1131,6 +1135,27 @@ textarea {
     align-items: stretch;
   }
 
+  .gameActive .sidebar {
+    gap: 6px;
+    padding: 6px 8px;
+  }
+
+  .gameActive .brandBlock,
+  .gameActive .identity,
+  .gameActive .sidebarActions,
+  .gameActive .notice {
+    display: none;
+  }
+
+  .gameActive .pageNav {
+    padding-bottom: 2px;
+  }
+
+  .gameActive .navButton {
+    min-height: 34px;
+    padding: 6px 8px;
+  }
+
   .identity {
     display: none;
   }
@@ -1147,6 +1172,24 @@ textarea {
 
   .canvasWrap {
     min-height: 250px;
+  }
+
+  .gameActive .canvasWrap {
+    min-height: 0;
+  }
+
+  .gameActive .topBar {
+    min-height: 0;
+    gap: 8px;
+    padding: 7px 8px;
+  }
+
+  .gameActive .countdownClock {
+    display: none;
+  }
+
+  .gameActive .privateRule {
+    padding: 7px 8px;
   }
 
   .topBar {

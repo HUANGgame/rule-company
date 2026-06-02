@@ -285,7 +285,7 @@ export function toggleDoor(roomId: string, playerId: string, doorId: string) {
   const player = mustPlayer(room, playerId);
   const door = room.state.doors.find((entry) => entry.id === doorId);
   if (!door) throw new Error("Door not found");
-  if (distance(player.x, player.y, door.x + door.width / 2, door.y + door.height / 2) > 125) throw new Error("請靠近門再互動");
+  if (distance(player.x, player.y, door.x + door.width / 2, door.y + door.height / 2) > 78) throw new Error("請靠近門再互動");
   door.open = !door.open;
   room.state.logs.unshift(`${player.name} ${door.open ? "打開" : "關閉"} ${door.name}`);
   return room.state;
@@ -300,6 +300,8 @@ export function startTask(roomId: string, playerId: string, taskId: string) {
   if (player.faction === "boss") throw new Error("老闆不用完成工作");
   if (!player.alive) throw new Error("已淘汰玩家不能工作");
   if (player.currentArea !== task.area) throw new Error(`請先前往 ${task.area}`);
+  const target = taskTargets[task.area];
+  if (target && distance(player.x, player.y, target.x, target.y) > 88) throw new Error("請靠近任務物件再互動");
   if (room.state.activeTasks.some((entry) => entry.playerId === playerId)) throw new Error("已有進行中的任務");
   let multiplier = room.state.activeEvents.some((entry) => entry.effectType === "printer_noise") && ["Reception", "Archive"].includes(task.area) ? 1.4 : 1;
   if ((privateState?.itemEffects?.taskBoosts || 0) > 0) {
@@ -585,27 +587,33 @@ function createDoors() {
 }
 
 function canStandAt(room: RoomRuntime, x: number, y: number) {
-  const center = { x, y };
-  if (hallways.some((rect) => containsPoint(rect, center.x, center.y))) return true;
-  if (room.state.doors.some((door) => door.open && rectsOverlap(pointRect(center.x, center.y, playerRadius), door))) return true;
+  const samples = [
+    [0, 0],
+    [playerRadius, 0],
+    [-playerRadius, 0],
+    [0, playerRadius],
+    [0, -playerRadius],
+    [playerRadius * 0.72, playerRadius * 0.72],
+    [-playerRadius * 0.72, playerRadius * 0.72],
+    [playerRadius * 0.72, -playerRadius * 0.72],
+    [-playerRadius * 0.72, -playerRadius * 0.72]
+  ];
+  return samples.every(([offsetX, offsetY]) => canStandPoint(room, x + offsetX, y + offsetY));
+}
+
+function canStandPoint(room: RoomRuntime, x: number, y: number) {
+  if (hallways.some((rect) => containsPoint(rect, x, y))) return true;
+  if (room.state.doors.some((door) => door.open && containsPoint(door, x, y))) return true;
   return roomsLayout.some((rect) => {
-    if (!containsPoint(rect, center.x, center.y)) return false;
+    if (!containsPoint(rect, x, y)) return false;
     const door = room.state.doors.find((entry) => entry.area === rect.area);
     if (!door || door.open) return true;
-    return !isNearDoor(center.x, center.y, door);
+    return !isNearDoor(x, y, door);
   });
 }
 
 function containsPoint(rect: { x: number; y: number; width: number; height: number }, x: number, y: number) {
   return x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height;
-}
-
-function pointRect(x: number, y: number, radius: number) {
-  return { x: x - radius, y: y - radius, width: radius * 2, height: radius * 2 };
-}
-
-function rectsOverlap(a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }) {
-  return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
 }
 
 function isNearDoor(x: number, y: number, door: DoorState) {

@@ -189,7 +189,7 @@ function App() {
   const activeGame = state?.status === "playing";
 
   return (
-    <main className="appShell">
+    <main className={activeGame ? "appShell gameActive" : "appShell"}>
       <aside className="sidebar">
         <div className="brandBlock">
           <h1>規則公司</h1>
@@ -729,6 +729,16 @@ function TopBar({ state, privateState, gameConfig }: { state: GameState; private
 }
 
 const mapWorld = { width: 1400, height: 900 };
+const taskTargets: Record<string, { x: number; y: number }> = {
+  Reception: { x: 540, y: 545 },
+  Archive: { x: 215, y: 175 },
+  Accounting: { x: 1130, y: 650 },
+  "Meeting Room": { x: 600, y: 180 },
+  "Server Room": { x: 250, y: 660 },
+  "Break Room": { x: 1130, y: 455 },
+  "Executive Office": { x: 1125, y: 180 },
+  "Exit Gate": { x: 700, y: 815 }
+};
 const mapRooms = [
   { x: 80, y: 70, width: 300, height: 230, color: "#1b2a3a", label: "檔案室" },
   { x: 430, y: 70, width: 340, height: 230, color: "#25364a", label: "會議室" },
@@ -747,13 +757,21 @@ function GameCanvas({ state, meId, tasks, onMove, onInteract, onToggleDoor }: { 
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const me = state.players.find((player) => player.id === meId);
-  const nearbyTasks = tasks.filter((task) => task.area === me?.currentArea);
-  const primaryTask = nearbyTasks[0];
+  const primaryTask = useMemo(() => {
+    if (!me) return undefined;
+    return tasks
+      .map((task) => {
+        const target = taskTargets[task.area];
+        return { task, distance: target ? Math.hypot(me.x - target.x, me.y - target.y) : Number.POSITIVE_INFINITY };
+      })
+      .filter((entry) => entry.task.area === me.currentArea && entry.distance <= 88)
+      .sort((a, b) => a.distance - b.distance)[0]?.task;
+  }, [me, tasks]);
   const nearestDoor = useMemo(() => {
     if (!me) return undefined;
     return state.doors
       .map((door) => ({ door, distance: Math.hypot(me.x - (door.x + door.width / 2), me.y - (door.y + door.height / 2)) }))
-      .filter((entry) => entry.distance <= 125)
+      .filter((entry) => entry.distance <= 78)
       .sort((a, b) => a.distance - b.distance)[0]?.door;
   }, [me, state.doors]);
 
