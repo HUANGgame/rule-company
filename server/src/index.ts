@@ -66,6 +66,7 @@ app.post("/api/auth/register", async (req, res) => {
             email: input.email.toLowerCase(),
             name: input.name,
             passwordHash: await bcrypt.hash(input.password, 10),
+            coins: 0,
             isAdmin: isConfiguredAdmin(input.email)
           },
           select: { id: true, email: true, name: true, coins: true, isAdmin: true }

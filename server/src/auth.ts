@@ -46,7 +46,7 @@ export async function fallbackRegister(email: string, name: string, password: st
     id: `user-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     email: normalized,
     name,
-    coins: 300,
+    coins: 0,
     isAdmin: fallbackUsers.size === 0 || isConfiguredAdmin(normalized),
     passwordHash: await bcrypt.hash(password, 10)
   };

@@ -78,7 +78,7 @@ export const characterSkins: CharacterSkin[] = [
     name: "夜班總務",
     description: "標準員工形象，適合新手辨識。",
     imageUrl: "/skins/night-clerk.png",
-    price: 0,
+    price: 60,
     available: true,
     faction: "employee"
   },

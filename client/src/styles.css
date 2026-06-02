@@ -141,6 +141,13 @@ button {
   background: #211f1b;
 }
 
+.shopPanel > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .shopPanel h2 {
   margin-bottom: 0;
 }
@@ -148,6 +155,88 @@ button {
 .shopPanel > span {
   color: #f0c96a;
   font-size: 13px;
+}
+
+.shopStatus {
+  color: #f0c96a;
+  font-size: 13px;
+}
+
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(3, 5, 8, .72);
+}
+
+.shopModal {
+  display: grid;
+  gap: 14px;
+  width: min(860px, calc(100vw - 28px));
+  max-height: min(760px, calc(100vh - 28px));
+  padding: 18px;
+  border: 2px solid #5e574a;
+  background: #171614;
+  box-shadow: 0 20px 80px rgba(0, 0, 0, .55);
+  overflow: auto;
+}
+
+.shopModal header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #3b3932;
+  padding-bottom: 12px;
+}
+
+.shopModal header > div {
+  display: grid;
+  gap: 4px;
+}
+
+.shopModal header span,
+.shopCard span {
+  color: #aaa493;
+  font-size: 13px;
+}
+
+.shopCatalog {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 10px;
+}
+
+.shopCard {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #514d42;
+  background: #201e19;
+}
+
+.shopCard > div,
+.shopCard footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.shopCard p {
+  min-height: 44px;
+  margin: 0;
+  color: #ded8c7;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.shopCard b {
+  color: #f0c96a;
+  white-space: nowrap;
 }
 
 .shopList {

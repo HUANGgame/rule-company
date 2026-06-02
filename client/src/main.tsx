@@ -150,6 +150,86 @@ function App() {
 
 function ShopPanel({ auth, onAuth }: { auth: AuthState; onAuth: (auth: AuthState) => void }) {
   const [items, setItems] = useState<Array<ShopItem | CharacterSkin>>([]);
+  const [open, setOpen] = useState(false);
+  const [status, setStatus] = useState("");
+
+  const loadShop = useCallback(async () => {
+    const res = await fetch(`${apiUrl}/api/shop/items`);
+    const data = await res.json();
+    setItems([...(data.items || []), ...(data.skins || [])]);
+  }, []);
+
+  useEffect(() => {
+    loadShop();
+  }, [loadShop]);
+
+  async function buy(itemId: string) {
+    const res = await fetch(`${apiUrl}/api/shop/buy`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${auth.token}` },
+      body: JSON.stringify({ itemId })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setStatus(data.error || "購買失敗");
+      return;
+    }
+    const nextAuth = { ...auth, user: data.user };
+    localStorage.setItem("rule-company-auth", JSON.stringify(nextAuth));
+    onAuth(nextAuth);
+    setStatus(`已購買 ${data.item.name}`);
+  }
+
+  return (
+    <>
+      <section className="shopPanel">
+        <div>
+          <h2>商店</h2>
+          <span>金幣 {auth.user.coins}</span>
+        </div>
+        <button className="primaryButton" onClick={() => setOpen(true)}>打開商店</button>
+        {status && <span className="shopStatus">{status}</span>}
+      </section>
+      {open && (
+        <div className="modalBackdrop" role="dialog" aria-modal="true" aria-label="商店">
+          <section className="shopModal">
+            <header>
+              <div>
+                <h2>商店</h2>
+                <span>目前金幣 {auth.user.coins}</span>
+              </div>
+              <button className="ghostButton" onClick={() => setOpen(false)}>關閉</button>
+            </header>
+            <div className="shopCatalog">
+              {items.map((item) => {
+                const itemType = "imageUrl" in item ? "人物外觀" : "道具";
+                const canBuy = auth.user.coins >= item.price;
+                return (
+                  <article className="shopCard" key={item.id}>
+                    <div>
+                      <strong>{item.name}</strong>
+                      <span>{itemType}</span>
+                    </div>
+                    <p>{item.description}</p>
+                    <footer>
+                      <b>{item.price} 金幣</b>
+                      <button className={canBuy ? "primaryButton" : "ghostButton"} disabled={!canBuy} onClick={() => buy(item.id)}>
+                        {canBuy ? "購買" : "金幣不足"}
+                      </button>
+                    </footer>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        </div>
+      )}
+    </>
+  );
+}
+
+function LegacyShopPanel({ auth, onAuth }: { auth: AuthState; onAuth: (auth: AuthState) => void }) {
+  const [items, setItems] = useState<Array<ShopItem | CharacterSkin>>([]);
   const [status, setStatus] = useState(`金幣 ${auth.user.coins}`);
 
   const loadShop = useCallback(async () => {
