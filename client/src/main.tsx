@@ -250,6 +250,7 @@ function App() {
                 state={state}
                 meId={auth.user.id}
                 tasks={content.tasks}
+                canDoTasks={privateState?.faction !== "boss"}
                 onMove={(dx, dy) => emit("player_move", { roomId: state.roomId, dx, dy })}
                 onInteract={(taskId) => emit("start_task", { roomId: state.roomId, taskId })}
                 onToggleDoor={(doorId) => emit("toggle_door", { roomId: state.roomId, doorId })}
@@ -749,7 +750,7 @@ const mapRooms = [
   { x: 980, y: 610, width: 280, height: 190, color: "#25201b", label: "財務室" }
 ];
 
-function GameCanvas({ state, meId, tasks, onMove, onInteract, onToggleDoor }: { state: GameState; meId: string; tasks: TaskDef[]; onMove: (dx: number, dy: number) => void; onInteract: (taskId: string) => void; onToggleDoor: (doorId: string) => void }) {
+function GameCanvas({ state, meId, tasks, canDoTasks, onMove, onInteract, onToggleDoor }: { state: GameState; meId: string; tasks: TaskDef[]; canDoTasks: boolean; onMove: (dx: number, dy: number) => void; onInteract: (taskId: string) => void; onToggleDoor: (doorId: string) => void }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const joystickRef = useRef<HTMLDivElement | null>(null);
   const joystickDirection = useRef<[number, number]>([0, 0]);
@@ -758,7 +759,7 @@ function GameCanvas({ state, meId, tasks, onMove, onInteract, onToggleDoor }: { 
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const me = state.players.find((player) => player.id === meId);
   const primaryTask = useMemo(() => {
-    if (!me) return undefined;
+    if (!me || !canDoTasks) return undefined;
     return tasks
       .map((task) => {
         const target = taskTargets[task.area];
@@ -766,7 +767,7 @@ function GameCanvas({ state, meId, tasks, onMove, onInteract, onToggleDoor }: { 
       })
       .filter((entry) => entry.task.area === me.currentArea && entry.distance <= 88 && !state.activeTasks.some((active) => active.playerId === me.id))
       .sort((a, b) => a.distance - b.distance)[0]?.task;
-  }, [me, state.activeTasks, tasks]);
+  }, [canDoTasks, me, state.activeTasks, tasks]);
   const nearestDoor = useMemo(() => {
     if (!me) return undefined;
     return state.doors
