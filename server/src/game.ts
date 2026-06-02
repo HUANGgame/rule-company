@@ -458,6 +458,8 @@ function runBossBot(room: RoomRuntime, bot: PlayerPublic) {
 }
 
 function chooseBotTask(room: RoomRuntime, bot: PlayerPublic) {
+  const localTask = tasks.find((task) => task.area === bot.currentArea);
+  if (localTask) return localTask;
   const completedOffset = bot.score % tasks.length;
   return tasks[(room.state.players.indexOf(bot) + completedOffset) % tasks.length] || tasks[0];
 }
