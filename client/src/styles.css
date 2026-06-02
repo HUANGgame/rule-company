@@ -753,6 +753,11 @@ h2 {
   background: #211f1b;
 }
 
+.activeTaskCard {
+  border-color: #b88947;
+  background: #2b2418;
+}
+
 .taskDetailCard header,
 .inventoryCard > div {
   display: flex;

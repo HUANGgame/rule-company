@@ -241,7 +241,7 @@ function App() {
               />
             )}
             {page === "tasks" ? (
-              <ActionPanel state={state} meId={auth.user.id} content={content} privateState={privateState} isBoss={isBoss} auth={auth} emit={emit} />
+              <ActionPanel state={state} meId={auth.user.id} content={content} privateState={privateState} isBoss={isBoss} canDoTasks={privateState?.faction !== "boss"} auth={auth} emit={emit} />
             ) : page === "chat" ? (
               <ChatPanel state={state} emit={emit} />
             ) : (
@@ -987,15 +987,30 @@ function clampNumber(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
-function ActionPanel({ state, meId, content, privateState, isBoss, auth, emit }: { state: GameState; meId: string; content: Content; privateState: PrivatePlayerState | null; isBoss: boolean; auth: AuthState; emit: <T>(event: string, payload: Record<string, unknown>) => Promise<T> }) {
+function taskDistanceFromPlayer(player: { x: number; y: number } | undefined, task: TaskDef) {
+  const target = taskTargets[task.area];
+  return player && target ? Math.hypot(player.x - target.x, player.y - target.y) : Number.POSITIVE_INFINITY;
+}
+
+function ActionPanel({ state, meId, content, privateState, isBoss, canDoTasks, auth, emit }: { state: GameState; meId: string; content: Content; privateState: PrivatePlayerState | null; isBoss: boolean; canDoTasks: boolean; auth: AuthState; emit: <T>(event: string, payload: Record<string, unknown>) => Promise<T> }) {
+  const [now, setNow] = useState(Date.now());
   const me = state.players.find((player) => player.id === meId);
-  const availableTasks = content.tasks.filter((task) => task.area === me?.currentArea);
+  const myActiveTask = state.activeTasks.find((entry) => entry.playerId === meId);
+  const activeTaskDef = content.tasks.find((task) => task.id === myActiveTask?.taskId);
+  const activeTaskRemaining = myActiveTask ? Math.max(0, Math.ceil((myActiveTask.endsAt - now) / 1000)) : 0;
+  const hasActiveTask = Boolean(myActiveTask);
+  const availableTasks = canDoTasks ? content.tasks.filter((task) => task.area === me?.currentArea) : [];
   const [targetId, setTargetId] = useState("");
   const [ruleId, setRuleId] = useState("");
   const [inventory, setInventory] = useState<InventoryEntry[]>([]);
   const [bagStatus, setBagStatus] = useState("");
   const bossEnergy = privateState?.bossState?.sabotageEnergy ?? 0;
   const usableInventory = inventory.filter((entry) => !entry.item || !("imageUrl" in entry.item));
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 500);
+    return () => window.clearInterval(id);
+  }, []);
 
   const loadInventory = useCallback(async () => {
     const res = await fetch(`${apiUrl}/api/shop/inventory`, {
@@ -1019,31 +1034,50 @@ function ActionPanel({ state, meId, content, privateState, isBoss, auth, emit }:
     <aside className="actionPanel">
       <section>
         <h2><BriefcaseBusiness size={18} /> 任務</h2>
-        {availableTasks.map((task) => (
-          <article key={task.id} className="taskDetailCard">
+        {!canDoTasks && <p className="muted">主管不做員工任務，請使用干擾或檢舉功能。</p>}
+        {myActiveTask && (
+          <article className="taskDetailCard activeTaskCard">
             <header>
               <div>
-                <strong>{task.name}</strong>
-                <span>{areaLabel(task.area)} · {taskKindLabel(task.kind)}</span>
+                <strong>進行中：{activeTaskDef?.name || myActiveTask.taskId}</strong>
+                <span>{activeTaskDef ? areaLabel(activeTaskDef.area) : "任務"} · 剩餘 {activeTaskRemaining}s</span>
               </div>
-              <b>{task.score} 分 · {task.duration}s</b>
+              <b>{Math.max(0, Math.min(100, Math.round(((now - myActiveTask.startedAt) / Math.max(1, myActiveTask.endsAt - myActiveTask.startedAt)) * 100)))}%</b>
             </header>
-            <p>{task.description || "前往指定區域完成工作項目。"}</p>
-            <dl>
-              <div><dt>目標</dt><dd>{task.objective || "完成任務並提高工作進度。"}</dd></div>
-              <div><dt>風險</dt><dd>{task.risk || "注意私人規則與主管干擾。"}</dd></div>
-            </dl>
-            {!!task.steps?.length && (
-              <ol>
-                {task.steps.map((step) => <li key={step}>{step}</li>)}
-              </ol>
-            )}
-            <button className="primaryButton" onClick={() => emit("start_task", { roomId: state.roomId, taskId: task.id })}>
-              <ClipboardList size={16} /> 開始任務
-            </button>
+            <p>任務完成前不能開始其他任務。</p>
           </article>
-        ))}
-        {!availableTasks.length && <p className="muted">目前區域沒有任務，移動到其他辦公區查看。</p>}
+        )}
+        {availableTasks.map((task) => {
+          const distance = taskDistanceFromPlayer(me, task);
+          const nearEnough = distance <= 88;
+          const disabledReason = hasActiveTask ? "已有任務進行中" : nearEnough ? "" : "靠近任務物件才能開始";
+          return (
+            <article key={task.id} className="taskDetailCard">
+              <header>
+                <div>
+                  <strong>{task.name}</strong>
+                  <span>{areaLabel(task.area)} · {taskKindLabel(task.kind)}</span>
+                </div>
+                <b>{task.score} 分 · {task.duration}s</b>
+              </header>
+              <p>{task.description || "前往指定區域完成工作項目。"}</p>
+              <dl>
+                <div><dt>目標</dt><dd>{task.objective || "完成任務並提高工作進度。"}</dd></div>
+                <div><dt>風險</dt><dd>{task.risk || "注意私人規則與主管干擾。"}</dd></div>
+              </dl>
+              {!!task.steps?.length && (
+                <ol>
+                  {task.steps.map((step) => <li key={step}>{step}</li>)}
+                </ol>
+              )}
+              {disabledReason && <p className="muted">{disabledReason}</p>}
+              <button className="primaryButton" disabled={Boolean(disabledReason)} onClick={() => emit("start_task", { roomId: state.roomId, taskId: task.id })}>
+                <ClipboardList size={16} /> 開始任務
+              </button>
+            </article>
+          );
+        })}
+        {canDoTasks && !availableTasks.length && <p className="muted">目前區域沒有任務，移動到其他辦公區查看。</p>}
       </section>
       <section>
         <h2><Package size={18} /> 背包</h2>
