@@ -702,18 +702,18 @@ function GameCanvas({ state, meId, tasks, onMove, onInteract }: { state: GameSta
     for (let x = 42; x < 940; x += 14) ctx.fillRect(x, 14, 7, 534);
     for (let y = 14; y < 552; y += 14) ctx.fillRect(42, y, 898, 7);
 
-    room(ctx, 72, 54, 230, 170, "#1b2a3a", "Archive");
-    room(ctx, 318, 54, 260, 170, "#25364a", "Meeting");
-    room(ctx, 704, 54, 178, 170, "#2a2230", "Boss Office");
-    room(ctx, 72, 330, 230, 144, "#2a2f3d", "Server Room");
-    room(ctx, 704, 244, 178, 100, "#244456", "Pantry");
-    room(ctx, 704, 360, 178, 114, "#25201b", "Finance");
-    room(ctx, 280, 262, 342, 162, "#20364a", "Lobby");
+    room(ctx, 72, 54, 230, 170, "#1b2a3a", "檔案室");
+    room(ctx, 318, 54, 260, 170, "#25364a", "會議室");
+    room(ctx, 704, 54, 178, 170, "#2a2230", "主管辦公室");
+    room(ctx, 72, 330, 230, 144, "#2a2f3d", "伺服器室");
+    room(ctx, 704, 244, 178, 100, "#244456", "茶水間");
+    room(ctx, 704, 360, 178, 114, "#25201b", "財務室");
+    room(ctx, 280, 262, 342, 162, "#20364a", "大廳");
     ctx.fillStyle = "#0b0f16";
     ctx.fillRect(436, 512, 106, 20);
     ctx.fillStyle = "#c8bd63";
     ctx.font = "12px monospace";
-    ctx.fillText("Exit", 472, 506);
+    ctx.fillText("出口", 472, 506);
 
     ctx.fillStyle = "#6d2833";
     ctx.fillRect(418, 322, 38, 28);
@@ -804,7 +804,7 @@ function GameCanvas({ state, meId, tasks, onMove, onInteract }: { state: GameSta
   return (
     <div className="canvasWrap">
       <canvas ref={canvasRef} width={980} height={590} />
-      <div className="locationBadge">{me?.currentArea || "Reception"}</div>
+      <div className="locationBadge">{areaLabel(me?.currentArea || "Reception")}</div>
       <div className="movementHint">WASD / 方向鍵移動</div>
       {primaryTask && (
         <button className="interactButton" onClick={() => onInteract(primaryTask.id)}>
@@ -845,6 +845,30 @@ function room(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h:
   ctx.fillText(label, x + 14, y + 24);
 }
 
+function areaLabel(area: string) {
+  const labels: Record<string, string> = {
+    Reception: "接待大廳",
+    Accounting: "財務室",
+    Archive: "檔案室",
+    "Meeting Room": "會議室",
+    "Server Room": "伺服器室",
+    "Break Room": "茶水間",
+    "Executive Office": "主管辦公室",
+    "Exit Gate": "出口"
+  };
+  return labels[area] || area;
+}
+
+function taskKindLabel(kind: TaskDef["kind"]) {
+  const labels: Record<TaskDef["kind"], string> = {
+    sequence: "順序",
+    memory: "記憶",
+    timing: "時機",
+    sorting: "分類"
+  };
+  return labels[kind];
+}
+
 function ActionPanel({ state, meId, content, privateState, isBoss, auth, emit }: { state: GameState; meId: string; content: Content; privateState: PrivatePlayerState | null; isBoss: boolean; auth: AuthState; emit: <T>(event: string, payload: Record<string, unknown>) => Promise<T> }) {
   const me = state.players.find((player) => player.id === meId);
   const availableTasks = content.tasks.filter((task) => task.area === me?.currentArea);
@@ -882,7 +906,7 @@ function ActionPanel({ state, meId, content, privateState, isBoss, auth, emit }:
             <header>
               <div>
                 <strong>{task.name}</strong>
-                <span>{task.area} · {task.kind}</span>
+                <span>{areaLabel(task.area)} · {taskKindLabel(task.kind)}</span>
               </div>
               <b>{task.score} 分 · {task.duration}s</b>
             </header>
